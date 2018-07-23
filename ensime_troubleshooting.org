@@ -1,0 +1,125 @@
+
+
+** Troubleshooting ensime  issue
+<2018-05-03 Thu>
+
+Ensime is not able to recognize newly added libraries to SBT
+
+ update build.sbt, regenerate .ensime and restart Ensime
+
+sbt compile from sbt-mode works. 
+But can't import in scala-mode repl
+
+Coursier
+**** TODO Need a way to save window layout. 
+Winnermode ?
+http://ergoemacs.org/emacs/emacs_winner_mode.html
+
+**** TODO Get ensime shapeless resolution working in project
+
+sbt compile in scala_sandbox works. Both Coursier and ivy cache have shapeless jars
+
+**** TODO Get shapeless resolution in orgmode scala codeblock  
+
++ Cats resolves fine, java.io.File - fine
++ shapeless intellisense works in code editor buffer but not on evaluate
+
+https://github.com/tkf/org-mode/blob/master/lisp/ob-scala.el
+
+ - seems like he is invoking scala command and passing the 
+
+- looked at the Messages buffer and it shows whats being executed on C-c C-c
+ what's here ? where is it referencing libraries from ?
+
+Loading /var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval4722i9k...
+
+And so I also see this
+
+https://github.com/ensime/emacs-scala-mode/blob/master/ob-scala.el
+
+found this
+/Users/nchennamsetty/.emacs.d//elpa/scala-mode-20170802.432/ob-scala.el
+
+- looks like iam using ensime's scala-mode 
+
+ensime server is not starting with correct dependencies
+
+
+This is going somewhere
+ - I see ENSIME server startup messages have a problem locating a jar
+but I see shapeless jar in the classpath of the ENSIME launch
+
+Could not replicate "file:///Users/nchennamsetty/.ivy2/cache/org.typelevel/machinist_2.12/srcs/machinist_2.12-0.6.2-sources.jar" as it does not exist.
+	at org.apache.commons.vfs2.provider.AbstractFileSystem.replicateFile(AbstractFileSystem.java:417)
+
+
+- I see shapeless jar in ensime java process "Open Files and Ports"
+
+
+ENSIME is up and running. jars loaded
+but C-c C-c says ensime not connected
+
+Removed .scala from outside src folders and regenerated 
+
+-- Success !!!!
+
+**** TODO Fix the results block 
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+
+it's ansi-color coding - showing up literally because its in begin_example block
+https://emacs.stackexchange.com/questions/39390/force-org-to-use-instead-of-begin-example-for-sour:ce-block-output
+https://emacs.stackexchange.com/questions/20949/formatting-output-of-inline-org-mode-source-blocks?rq=1
+
+was able to get rid of begin_example with M-:
+
+
+
+
+*** Update ensime with new library
+sbt cleanFiles
+rm .ensime_cache
+rm .ensime
+sbt ensimeConfig
+
+M-x ensime
+start scala repl
+ -- from Test.scala C-c C-v z OR
+ -- M-x ensime-inf-run-scala
+
+
+<2018-05-12 Sat 22:04>
+if sbt is launching from ~/ .delete ~/project
+
+** Working with magit
+
+Look at version history of one file
+SPC g f h
+
+or
+
+** Things I should be able to 
+
+*** Check ensime package version
+   M-x list-packages and go to "ensime"
+*** Run sbt project index
+ 
+sbt ensimeServerIndex
+
+*** Show all implementations
+
+*** go to definition
+
+*** update ensime pacakge version
+
+*** debug code
+
+
+*** format code
+
+use scalaformat cli
+
+
+*** know whats going inside sbt
+

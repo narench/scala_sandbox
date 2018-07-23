@@ -1,0 +1,2380 @@
+
+* Scala
+*** Sequence operations - reduce, fold, scan
+https://stackoverflow.com/questions/17408880/reduce-fold-or-scan-left-right
+*** Polymorphism
+**** Parametric
+**** subtype
+**** adhoc
+Typeclasses ..because you add behavior
+**** miscllaneous
+rank-1 polymorphism and higher-rank polymorphism. Basically how many type parameters you have ?
+
+
+https://apocalisp.wordpress.com/2010/07/02/higher-rank-polymorphism-in-scala/
+http://milessabin.com/blog/2012/04/27/shapeless-polymorphic-function-values-1/
+
+***  Higher kinded types
+| zero-order | First order | second order |
+|------------+-------------+--------------|
+| Int        |   List      |   Monad[F[]] |
+
+** Implicits
+*** Context bound
+https://docs.scala-lang.org/tutorials/FAQ/context-bounds.html
+
+def sort[A: Ordering](a:A, b: A)
+is same as 
+
+def sort[A](a: A, b: A)(implicit ord: Ordering[A])
+*** Implicit Resolution
+https://docs.scala-lang.org/tutorials/FAQ/finding-implicits.html
+
+Lexical scope
+companion object of type etc.,
+*** View bound
+*** Effects
+F[A]. Option, List, Future
+
+
+** Scala Typeclass
+**** define typeclass - a generic functionalLiity that you can define for any type
+**** create typeclass instances - implement that functionality for sepcific types
+**** choose a form of type interface - methods that user can call
+    + use a helper object
+    + use a implicit class based type enrichment
+    + use implicitly
+
+*** Typeclass
+#+BEGIN_SRC scala
+     trait CanFoo[A]{
+     def foo(a: A): String
+     }
+
+     implicit object StringFooable extends CanFoo[String]{
+
+     def foo(s: String) = s"${s} is fooable"
+
+     }
+
+     implicit object IntFooable extends CanFoo[Int]{
+
+     def foo(i: Int) = s"${i.toString} is fooable"
+
+
+     }
+
+   case class Person(name: String, email: String)
+
+
+
+    implicit object PersonFooable extends CanFoo[Person]{
+
+     def foo(p: Person) = { s"${p.name} - ${p.email} is fooable"
+     }
+
+   }
+   // type interface 1
+     object FooableHelper {
+
+     def fooify[A](a:A)(implicit afi: CanFoo[A]) = 
+     afi.foo(a)
+     }
+
+     FooableHelper.fooify("naren")
+     FooableHelper.fooify(100)
+     val per = Person("abe", "abe@usa.gov")
+    FooableHelper.fooify(per)
+
+   // type interface 2
+
+
+     object FooableInstances {
+     implicit class FooableOps[A](a:A) {
+     def toFoo(implicit afi: CanFoo[A]) = afi.foo(a)
+      }
+     }
+
+
+     import FooableInstances.FooableOps
+
+     "narendra".toFoo
+    1.toFoo
+    per.toFoo
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+defined trait CanFoo
+defined object StringFooable
+defined object IntFooable
+defined class Person
+defined object PersonFooable
+defined object FooableHelper
+[1m[34mres7[0m: [1m[32mString[0m = naren is fooable
+[1m[34mres8[0m: [1m[32mString[0m = 100 is fooable
+[1m[34mper[0m: [1m[32mPerson[0m = Person(abe,abe@usa.gov)
+[1m[34mres9[0m: [1m[32mString[0m = abe - abe@usa.gov is fooable
+defined object FooableInstances
+import FooableInstances.FooableOps
+[1m[34mres10[0m: [1m[32mString[0m = narendra is fooable
+[1m[34mres11[0m: [1m[32mString[0m = 1 is fooable
+[1m[34mres12[0m: [1m[32mString[0m = abe - abe@usa.gov is fooable
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+
+In java inheritance is used to extend functionality. Problem with it is fat classes
+
+#+BEGIN_SRC java
+interface Fooable {
+public string foo() = ???
+}
+public class Person implements Fooable
+
+#+END_SRC
+
+
+** Recursive Data types
+
+
+using contravariance for the base case.
+https://docs.scala-lang.org/tour/unified-types.html
+https://docs.scala-lang.org/tour/variances.html 
+
+#+BEGIN_SRC scala
+sealed trait MyList[-A]
+case object End extends MyList[Any]
+case class Cons[A](head: A, tail: MyList[A]) extends MyList[A]
+
+val d = End
+val c = Cons[Int](1,d)
+
+#+END_SRC
+
+Nothing is subtype of all types
+#+BEGIN_SRC scala 
+sealed trait MyList[+A]
+case object End extends MyList[Nothing]
+case class Cons[A](head: A, tail: MyList[A]) extends MyList[A]
+
+val d = End
+val c = Cons[Int](1,d)
+
+#+END_SRC
+
+#+RESULTS:
+: defined trait MyList
+: defined object End
+: defined class Cons
+: [1m[34md[0m: [1m[32mEnd.type[0m = End
+: [1m[34mc[0m: [1m[32mCons[Int][0m = Cons(1,End)
+: 
+: ob_scala_eol[35m
+: scala> [0m[35m
+: scala> [0m
+
+*** Binary tree with recursive types
+#+BEGIN_SRC scala
+trait Tree[+A]
+case class Leaf[A](e:A) extends Tree[A]
+case class Node[A](left: Tree[A], right: Tree[A]) extends Tree[A]
+
+val leaf1 = Leaf[Int](10)
+val node1 = Node[Int](leaf1, leaf1)
+val node2 = Node(node1, Leaf(0))
+
+
+def sumTree(t:Tree[A]): A = t match{
+case Node(Leaf(x), Leaf(y)) => x + y
+
+} 
+
+
+ 
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+defined trait Tree
+defined class Leaf
+defined class Node
+[1m[34mleaf1[0m: [1m[32mLeaf[Int][0m = Leaf(10)
+[1m[34mnode1[0m: [1m[32mNode[Int][0m = Node(Leaf(10),Leaf(10))
+[1m[34mnode2[0m: [1m[32mNode[Int][0m = Node(Node(Leaf(10),Leaf(10)),Leaf(0))
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval4722uUM:210: [31merror: [0mnot found: type A
+def sumTree(t:Tree[A]): A = t match{
+                        ^
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval4722uUM:210: [31merror: [0mnot found: type A
+def sumTree(t:Tree[A]): A = t match{
+                   ^
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval4722uUM:211: [31merror: [0mtype mismatch;
+ found   : Any
+ required: String
+case Node(Leaf(x), Leaf(y)) => x + y
+                                   ^
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+
+** Pattern Matching
+
+** Generic Folds
+Normally generic methods..would need concrete instances for implementations except for generic folds
+
+#+BEGIN_SRC scala
+sealed trait LinkedList[A]
+
+case object Nil extends LinkedList[Nothing]
+case class Pair[A](head:A, tail: LinkedList[A] extends LinkedList[A]
+
+
+// Pair(10, Nil)  
+// Pair(20, Pair(30, Nil))
+
+object LinkedList {
+
+def fold
+}
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+defined trait LinkedList
+defined object Nil
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval1425lkl:1: [31merror: [0m')' expected but 'extends' found.
+case class Pair[A](head:A, tail: LinkedList[A] extends LinkedList[A]
+                                               ^
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval1425lkl:40: [31merror: [0monly traits and abstract classes can have declared but undefined members
+def fold
+    ^
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+
+
+** Scala Cats
+*** Monoid
+#+BEGIN_SRC scala
+  import cats._
+
+  import cats.implicits._
+
+  Monoid[Option[Int]].combine(1.some, 2.some)
+
+ List(Some(10), Some(20), Some(30)).foldLeft(Monoid[Option[Int]].empty)(Monoid[Option[Int]].combine(_, _))
+
+
+#+END_SRC
+
+#+RESULTS:
+: import cats._
+: import cats.implicits._
+: [1m[34mres53[0m: [1m[32mOption[Int][0m = Some(3)
+: [1m[34mres54[0m: [1m[32mOption[Int][0m = Some(60)
+: 
+: ob_scala_eol[35m
+: scala> [0m[35m
+: scala> [0m
+
+*** Functors
+#+BEGIN_SRC scala
+import cats._
+import scala.language.higherKinds
+
+val list1 = List(1,2,3,5)
+Functor[List].map(list1)(i => i*2)
+
+//changing impl from the book
+def doMath[F[_]](start: F[Int])
+    (implicit functor: Functor[F]): F[Int] =
+  functor.map(start)(n => n + 1 * 2)
+
+doMath(Option(1))
+doMath(List(2,3,4,5))
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+import cats._
+import scala.language.higherKinds
+[1m[34mlist1[0m: [1m[32mList[Int][0m = List(1, 2, 3, 5)
+[1m[34mres70[0m: [1m[32mList[Int][0m = List(2, 4, 6, 10)
+[1m[34mdoMath[0m: [1m[32m[F[_]](start: F[Int])(implicit functor: cats.Functor[F])F[Int][0m
+[1m[34mres71[0m: [1m[32mOption[Int][0m = Some(3)
+[1m[34mres72[0m: [1m[32mList[Int][0m = List(4, 5, 6, 7)
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+*** Monads
+#+BEGIN_SRC scala
+  import cats._
+  import cats.syntax._
+    def sumSquare[F[_]: Monad](a: F[Int], b: F[Int]): F[Int] =
+     for {
+     x <- a
+     y <- b
+    } yield x*x + y*y
+
+sumSquare(Option(1), Option(3))
+
+    // Shouldnt this be
+
+    def sumSquare1[F[_]](a: F[Int], b: F[Int])(implicit monad: Monad[F])
+    {
+    //
+    }
+
+sumSquare(20.pure[Id], 30.pure[Id])
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+import cats._
+import cats.syntax._
+[1m[34msumSquare[0m: [1m[32m[F[_]](a: F[Int], b: F[Int])(implicit evidence$1: cats.Monad[F])F[Int][0m
+[1m[34mres115[0m: [1m[32mOption[Int][0m = Some(10)
+[1m[34msumSquare1[0m: [1m[32m[F[_]](a: F[Int], b: F[Int])(implicit monad: cats.Monad[F])Unit[0m
+[1m[34mres116[0m: [1m[32mcats.Id[Int][0m = 1300
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+
+**** Writer
+
+WriterT["error1", 42].flatMap(42 => Writer.tell("error2"))
+#+BEGIN_SRC scala
+  import cats.data.Writer
+  import cats.instances.vector._
+
+  val w1 = Writer(Vector("double double ", "toil and trouble"), 42)
+
+ val prg =  for {
+      l <- w1
+      u <- Writer.tell(Vector("extracted 42"))
+      v <- (l/2).writer(Vector("fire burn"))
+
+ } yield v
+
+prg.run
+
+#+END_SRC
+
+#+RESULTS:
+: import cats.data.Writer
+: import cats.instances.vector._
+: [1m[34mw1[0m: [1m[32mcats.data.WriterT[cats.Id,scala.collection.immutable.Vector[String],Int][0m = WriterT((Vector(double double , toil and trouble),42))
+: [1m[34mprg[0m: [1m[32mcats.data.WriterT[cats.Id,scala.collection.immutable.Vector[String],Int][0m = WriterT((Vector(double double , toil and trouble, extracted 42, fire burn),21))
+: [1m[34mres113[0m: [1m[32mcats.Id[(scala.collection.immutable.Vector[String], Int)][0m = (Vector("double double ", toil and trouble, extracted 42, fire burn),21)
+: 
+: ob_scala_eol[35m
+: scala> [0m[35m
+: scala> [0m
+
+**** Reader
+#+BEGIN_SRC scala
+import cats._
+import cats.data.Reader
+import cats.instances.vector._
+
+val cache = Map("a" -> 10)
+
+val intReader = Reader((c: Map[String, Int]) => c.getOrElse("a", 20))
+
+intReader.run(cache)
+
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+import cats._
+import cats.data.Reader
+import cats.instances.vector._
+[1m[34mcache[0m: [1m[32mscala.collection.immutable.Map[String,Int][0m = Map(a -> 10)
+[1m[34mintReader[0m: [1m[32mcats.data.Reader[Map[String,Int],Int][0m = Kleisli($$$50a9225beeac265557e61f69d69d7d$$$$w$$$Lambda$1587/732707265@343ce1)
+[1m[34mres140[0m: [1m[32mcats.Id[Int][0m = 10
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+
+
+*** MonadTransformer
+***** TODO  watch youtube video on this
+- Whats the best way to combine Reader, Either and Writer. 
+++ Either should be outside - for railway oriented programming
+++ So EitherT
+- Will this monadtransformer work as interpreter for Free monad
+***** EitherT IO and Tagless final
+#+Begin_src scala
+
+    import cats._
+    import cats.instances._
+    import cats.syntax._
+    import cats.data._
+    import cats.implicits._
+    import cats.effect.IO
+  import scala.language.higherKinds
+
+
+    type LogWriter[T] = Writer[Vector[String], T]
+    type ReaderWriter[U] = ReaderT[LogWriter, Map[String, Int], U]
+    type EitherReaderWriter[V] = EitherT[ReaderWriter, String, V]
+
+    type EitherOption[A] = EitherT[Option, String, A]
+
+    EitherT[Option, String, Int](Some(Right(32)))
+    //32.pure[EitherT[Option, String, Int]]
+
+    val erw = 32.pure[EitherReaderWriter]
+
+    val cache = Map("a" -> 100)
+
+    erw.value(cache).tell(Vector("double")).value //.value(Vector("running first time"))
+
+
+    val r = for {
+    x <- 64.pure[EitherReaderWriter]
+    y <- 236.pure[EitherReaderWriter]
+ 
+
+    } yield x + y
+
+    r.value(cache).value
+
+
+  // EitherT and IO work fine with each other
+
+  val eitherTIO = EitherT[IO, String, Int](IO(Right(25/4)))
+
+  for {
+        x <- eitherTIO
+        y <- EitherT[IO, String, Int](IO(Left("boom !!")))
+    } yield x + y
+
+
+
+  sealed trait Arithmetic[F[_]] {
+        def divide(a:Int, b: Int): F[Int]
+       }
+
+
+  type EitherTIO[A] = EitherT[IO, String, A]
+  type EitherString[A] = Either[String, Int]
+
+  class EitherArithmeticIO extends Arithmetic[IO] {
+   def divide(a: Int, b: Int) = IO { println(s"$a divided by $b"); (a/b)}
+
+ }
+
+  /*class EitherArithmeticInterpreter extends Arithmetic[Either] {
+   def divide(a: Int, b: Int) = Right(a/b)
+
+  }
+*/
+
+  class EitherTIOInterpreter extends Arithmetic[EitherTIO] {
+        def divide(a: Int, b: Int) = { if (b == 0)
+                          { EitherT[IO, String, Int](IO { Left("boom")}) }
+         else { EitherT[IO, String, Int](IO { Right(a/b)}) }
+        }
+}
+
+  // implicit def metio: Monad[EitherTIO] = 
+  
+
+  class program[F[_]: Monad](etio: Arithmetic[F]){
+       def run = for {
+        x <- etio.divide(10,2)
+        y <- etio.divide(x,0)
+        
+} yield x + y
+     }
+
+  val prg = new program(new EitherArithmeticIO())
+
+val prg1 = new program(new EitherTIOInterpreter())
+
+ // prg.run.unsafeRunSync
+
+prg1.run.value.unsafeRunSync
+
+IO.attempt(25/5)
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+import cats._
+import cats.instances._
+import cats.syntax._
+import cats.data._
+import cats.implicits._
+import cats.effect.IO
+import scala.language.higherKinds
+defined type alias LogWriter
+defined type alias ReaderWriter
+defined type alias EitherReaderWriter
+defined type alias EitherOption
+[1m[34mres46[0m: [1m[32mcats.data.EitherT[Option,String,Int][0m = EitherT(Some(Right(32)))
+[1m[34merw[0m: [1m[32mEitherReaderWriter[Int][0m = EitherT(Kleisli(cats.data.Kleisli$$Lambda$1603/1973584969@22712608))
+[1m[34mcache[0m: [1m[32mscala.collection.immutable.Map[String,Int][0m = Map(a -> 100)
+[1m[34mres47[0m: [1m[32mcats.Id[Either[String,Int]][0m = Right(32)
+[1m[34mr[0m: [1m[32mcats.data.EitherT[ReaderWriter,String,Int][0m = EitherT(Kleisli(cats.data.Kleisli$$$Lambda$1624/483606481@7a08c997))
+[1m[34mres48[0m: [1m[32mcats.Id[Either[String,Int]][0m = Right(300)
+[1m[34meitherTIO[0m: [1m[32mcats.data.EitherT[cats.effect.IO,String,Int][0m = EitherT(IO$1232002474)
+[1m[34mres49[0m: [1m[32mcats.data.EitherT[cats.effect.IO,String,Int][0m = EitherT(IO$579876529)
+defined trait Arithmetic
+defined type alias EitherTIO
+defined type alias EitherString
+defined class EitherArithmeticIO
+defined class EitherTIOInterpreter
+defined class program
+[1m[34mprg[0m: [1m[32mprogram[cats.effect.IO][0m = $$$a5cddfc4633c5dd8aa603ddc4f9aad5$$$$w$program@95763d1
+[1m[34mprg1[0m: [1m[32mprogram[EitherTIO][0m = $$$a5cddfc4633c5dd8aa603ddc4f9aad5$$$$w$program@1cd0972
+[1m[34mres54[0m: [1m[32mEither[String,Int][0m = Left(boom)
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval1425QQy:161: [31merror: [0mvalue attempt is not a member of object cats.effect.IO
+IO.attempt(25/5)
+   ^
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+
+
+*** Tagless Final
+How do you work with multiple effects. Just work with multiple algebras ?
+
+#+BEGIN_SRC scala
+import scala.language.higherKinds
+
+import cats.effect._
+import cats._
+import cats.implicits._
+
+
+// algebra
+trait Math[F[_]] {
+def multiply(a:Int, b: Int): F[Int]
+//def add(a:Int, b: Int): F[Int]
+}
+
+trait Console[F[_]] {
+
+def printline(msg:String): F[Unit]
+def readInt(prompt: String): F[Int]
+
+}
+
+trait Logging[F[_]] {
+def info(msg: String): F[Unit]
+}
+
+
+//interpreters
+
+object MathInterpreterIO extends Math[IO] {
+def multiply(a:Int, b:Int) = IO { a*b}
+
+}
+
+object LoggingInterpreterIO extends Logging[IO] {
+def info(msg:String): IO[Unit] = IO { println(msg)}
+
+}
+
+object ConsoleInterpreterIO extends Console[IO] {
+def printline(msg:String) = IO { println(msg)}
+def readInt(prompt: String) = IO {
+println(prompt)
+val a = io.StdIn.readInt()
+a
+}
+
+// program
+
+class SimpleProgram[F[_] : Monad](math: Math[F]) extends Logging[F] {
+
+def doMath(a: Int, b:Int) = for {
+  - <- info("starting multiplication")
+  c <- math.multiply(a, b)
+ } yield c
+}
+
+
+
+
+}
+
+
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+import scala.language.higherKinds
+import cats.effect._
+import cats._
+import cats.implicits._
+defined trait Math
+defined trait Console
+defined trait Logging
+defined object MathInterpreterIO
+defined object LoggingInterpreterIO
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval1425cBA:78: [31merror: [0mclass SimpleProgram needs to be abstract, since method info in trait Logging of type (msg: String)F[Unit] is not defined
+class SimpleProgram[F[_] : Monad](math: Math[F]) extends Logging[F] {
+      ^
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+
+** Shapeless
+
+*** Generic programming
+When is a good time to use 
+#+BEGIN_SRC scala :tangle yes :results value
+
+  import shapeless._
+  val product = 1 :: "naren" :: 30 :: HNil
+  case class cat(name:String, color:String, weight:Double)
+  val siamesecat = cat("siamese", "black", 1.0)
+
+  val catGen = Generic[cat]
+  val catRepr = catGen.to(siamesecat)
+ val sicat = catGen.from(catRepr)
+
+sealed trait Shape
+case class Rectangle(w: Int, h: Int) extends Shape
+case class Circle(r: Int) extends Shape
+
+type shapeType = Circle :+: Rectangle :+: CNil
+
+val shapeGen = Generic[Shape]
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+import shapeless._
+[1m[34mproduct[0m: [1m[32mInt :: String :: Int :: shapeless.HNil[0m = 1 :: naren :: 30 :: HNil
+defined class cat
+[1m[34msiamesecat[0m: [1m[32mcat[0m = cat(siamese,black,1.0)
+[1m[34mcatGen[0m: [1m[32mshapeless.Generic[cat]{type Repr = String :: String :: Double :: shapeless.HNil}[0m = anon$macro$85$1@10364a46
+[1m[34mcatRepr[0m: [1m[32mcatGen.Repr[0m = siamese :: black :: 1.0 :: HNil
+[1m[34msicat[0m: [1m[32mcat[0m = cat(siamese,black,1.0)
+defined trait Shape
+defined class Rectangle
+defined class Circle
+defined type alias shapeType
+[1m[34mshapeGen[0m: [1m[32mshapeless.Generic[Shape]{type Repr = Rectangle :+: Circle :+: shapeless.CNil}[0m = anon$macro$86$1@3981f060
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+
+*** Automatically deriving type class instances for 
+
+This section below shows how you can derive typeclass instance for tuples
+if you have two type class instances for individual types. implicit resolution for parameters of tuple2encoder 
+is wicked awesome
+
+#+BEGIN_SRC scala
+sealed trait CSVEncoder[A] {
+def encode(a: A): List[String]
+}
+
+object CSVEncoder{
+def apply[A](a:A)(implicit enc: CSVEncoder[A]) = enc.encode(a)
+}
+
+case class Person(name: String, gender: String, age: Int)
+case class Car(make: String, model: String, year: Int, color: String)
+
+implicit val personEncoder: CSVEncoder[Person] = {
+
+new CSVEncoder[Person] {
+
+def encode(p: Person) = List(s"${p.name}, ${p.gender}, ${p.age}")
+}
+}
+implicit val carEncoder: CSVEncoder[Car] = {
+
+new CSVEncoder[Car] {
+
+def encode(c: Car) = List(s"${c.make}, ${c.model}, ${c.year}")
+}
+}
+
+implicit def tuple2Encoder[A,B](implicit aEncoder:CSVEncoder[A], bEncoder: CSVEncoder[B]): CSVEncoder[(A,B)] = {
+new CSVEncoder[(A,B)] {
+def encode(ab: (A,B)) = aEncoder.encode(ab._1) ++ bEncoder.encode(ab._2) 
+}
+}
+val p = Person("naren", "m", 37)
+val c = Car("mazda", "cx5", 2015, "grey")
+CSVEncoder[Person](p)
+CSVEncoder[Car](c)
+CSVEncoder[(Person, Car)]((p,c))
+CSVEncoder[(Car, Person)]((c,p))
+
+ 
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+defined trait CSVEncoder
+defined object CSVEncoder
+warning: previously defined trait CSVEncoder is not a companion to object CSVEncoder.
+Companions must be defined together; you may wish to use :paste mode for this.
+defined class Person
+defined class Car
+[1m[34mpersonEncoder[0m: [1m[32mCSVEncoder[Person][0m = $$$d91043a62d83189590c031c2e2fe53f1$$$$w$$anon$1@e8b0bbf
+[1m[34mcarEncoder[0m: [1m[32mCSVEncoder[Car][0m = $$$d91043a62d83189590c031c2e2fe53f1$$$$w$$anon$1@22172e60
+[1m[34mtuple2Encoder[0m: [1m[32m[A, B](implicit aEncoder: CSVEncoder[A], implicit bEncoder: CSVEncoder[B])CSVEncoder[(A, B)][0m
+[1m[34mp[0m: [1m[32mPerson[0m = Person(naren,m,37)
+[1m[34mc[0m: [1m[32mCar[0m = Car(mazda,cx5,2015,grey)
+[1m[34mres57[0m: [1m[32mList[String][0m = List(naren, m, 37)
+[1m[34mres58[0m: [1m[32mList[String][0m = List(mazda, cx5, 2015)
+[1m[34mres59[0m: [1m[32mList[String][0m = List(naren, m, 37, mazda, cx5, 2015)
+[1m[34mres60[0m: [1m[32mList[String][0m = List(mazda, cx5, 2015, naren, m, 37)
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+
+*** Deriving instances for HList (product)
+
+*** Deriving instances for coproduct
+*** Deriving instances for Recursive types
+*** Dependent types
+Working with shapeless book
+
+#+BEGIN_SRC scala
+
+trait Generic[A]
+{
+type Repr
+def to(value: A): Repr
+def from(r: Repr): A
+
+}
+
+
+
+#+END_SRC
+
+
+** Testing python
+#+BEGIN_SRC python :results output
+ busy = 739242
+ free = 10060758
+ rate = (busy/(busy +free))
+ print(rate)
+
+#+END_SRC
+
+#+RESULTS:
+: 0.06844833333333333
+
+** Scala recursion schemes
+Machinery to abstract out recursion.
+https://www.slideshare.net/ArthurKushka/recursion-schemes-in-scala
+
+*** Cats-effect IO
+#+BEGIN_SRC scala
+import cats._
+import cats.effect.IO
+
+
+// IO sync  short circuits with attemp
+val prg = for {
+x <- IO(20/5)
+y <- IO("naren")
+z <- IO(y.length/0)
+
+} yield x + z
+
+prg
+
+prg.handleErrorWith{ e => IO {println(e); -1}}.unsafeRunSync
+
+ //val tr = prg.attempt.unsafeRunSync
+//println(tr.left.get.getMessage + tr.left.get.printStackTrace)
+#+End_src
+
+#+Results:
+#+begin_example
+import cats._
+import cats.effect.IO
+[1m[34mprg[0m: [1m[32mcats.effect.IO[Int][0m = IO$963259891
+[1m[34mres103[0m: [1m[32mcats.effect.IO[Int][0m = IO$963259891
+java.lang.ArithmeticException: / by zero
+[1m[34mres104[0m: [1m[32mInt[0m = -1
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+
+*** Applicative
+Semigroupal lets you combine types
+(Option(1), Option(2), Option(3)).product = Some((1,2,3))
+
+Finagle Endpoint[A] is applicative because you can write products and coproducts
+
+mpilquist
+trait Applicative[F[]] {
+def pure(a:A):F[A]
+def apply(fa:F[A])(f:F[A=>B]):F[B]
+
+//now write map
+def map(a:F[A])(f:A => B): F[B]
+ apply(fa)pure(f)
+
+// now write map2
+def map2(fa:F[A], fb: F[B])(f: (A, B) => Z): F[Z] =
+ fa.map(a => fb.map (b => f(a,b))
+
+//this completely beat me..but the answer seem to be
+apply(fa)F[A => Z]
+map(fb)(b => f(_, b)) gives you F[_ =>Z] 
+apply(fa)(map(fb)(b => f(_, b))
+
+/* inuition is apply needs function in a box F[A=>B]
+map can take a function and put a value in a box. so use map to put a function in box
+*/
+
+
+*** Scalaz IO Effect
+
+https://github.com/scalaz/ioeffect
+
+#+BEGIN_SRC scala
+  import scalaz.ioeffect._
+  import scalaz._
+
+  sealed trait Error
+  case class IntError(errorCode: Int) extends Error
+  case class StringError(errorMsg: String) extends Error
+  
+
+  val myio = ioeffect.IO.syncCatch(1+1){case _ => StringError("oops") }
+
+IO.fail(new Exception("double double toil and trouble"))
+
+object MyApp extends RTS {
+
+ val myio = ioeffect.IO.syncCatch(1+1){case _ => StringError("oops") }
+
+
+//val errorHandler = {case t: Throwable => Error("exception handled son")}
+val kaboom = ioeffect.IO.syncCatch[Error, Int](5/0){case t: Throwable => StringError(s"exception handled son: ${t.getMessage}")} // (errorHandler)
+
+//impure code
+val kablam = ioeffect.IO.syncException[Int](10/0)
+
+val stringErrorHandler: PartialFunction[Throwable, Error] = {case t: Throwable => StringError(s"exception is handled son: ${t.getMessage}")}
+val intErrorHandler: PartialFunction[Throwable, Error] = {case t: Throwable => IntError(errorCode = -1)}
+val program = for {
+
+x <- ioeffect.IO.point(10)
+a <- ioeffect.IO.syncCatch[Error, Int](x/0)(intErrorHandler)
+b <- ioeffect.IO.syncCatch[Error, Int](a/0)(stringErrorHandler) 
+} yield b
+
+
+def run = unsafePerformIO(program.attempt)
+
+}
+
+MyApp.run
+
+
+// you can't write impure code - this will throw exception
+//
+ioeffect.IO.point(1/0)
+
+
+
+
+
+
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+import scalaz.ioeffect._
+import scalaz._
+defined trait Error
+defined class IntError
+defined class StringError
+[1m[34mmyio[0m: [1m[32mscalaz.ioeffect.IO[StringError,Int][0m = scalaz.ioeffect.IO$FlatMap@1481002d
+[1m[34mres32[0m: [1m[32mscalaz.ioeffect.IO[Exception,Nothing][0m = scalaz.ioeffect.IO$Fail@5b1ff83a
+defined object MyApp
+[1m[34mres33[0m: [1m[32mError \/ Int[0m = -\/(IntError(-1))
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+
+
+
+
+
+** Tagless final with Scalaz IO Effect
+toy example to see how to work with. Say you have 2 algebras - airthmetic and logging 
+- F[_]: Monad  needs a monad instance like a Monad[List]
+- so if I set F[_]: scalaz.Monad or from whatever IO is instance of
+- F[_]: Monad is context-bound
+https://www.youtube.com/watch?v=dxBs_CdEC98
+
+
+**** Scalaz Monad etc.,
+
+#+BEGIN_SRC scala
+import scalaz._
+import scalaz.std.list._
+import scala.language.higherKinds
+import Scalaz._
+
+
+val names = List("naren", "katie")
+//Monad.liftM(names)
+
+def logNumber(x: Int): Writer[List[String], Int] =
+         x.set(List("Got number: " + x.shows))
+
+Monad[List].bind(names)(s => s.split("a").toList)
+//Flatmap[List].flatMap(names)(s => s.split("a").toList)
+
+
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+import scalaz._
+import scalaz.std.list._
+import scala.language.higherKinds
+import Scalaz._
+[1m[34mnames[0m: [1m[32mList[String][0m = List(naren, katie)
+[1m[34mlogNumber[0m: [1m[32m(x: Int)scalaz.Writer[List[String],Int][0m
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval1425qAP:162: [31merror: [0mvalue flatmap is not a member of scalaz.Monad[List]
+Monad[List].flatmap(names)(s => s.split("a").toList)
+            ^
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+
+
+**** IOEffect
+#+BEGIN_SRC scala
+import scalaz._
+import scalaz.ioeffect._
+import scala.language.higherKinds
+
+
+
+ sealed trait Error
+  case class GeneralError(errorMsg: String) extends Error
+  case class DivideByZeroError(num: Int, den: Int, errorMsg: String) extends Error
+
+
+trait Math[F[_]]{
+def divide(a:Int, b:Int):F[Int]
+}
+
+trait Logging[F[_]]{
+def logInfo(s:String):F[Unit]
+}
+
+
+type IOE[A] = ioeffect.IO[Error, A]
+val genErrorHandler: PartialFunction[Throwable, Error] = {case t: Throwable => GeneralError(t.getMessage())}
+
+val test:IOE[Int] = ioeffect.IO.syncCatch[Error, Int](200)(genErrorHandler) 
+
+class MathInterpreter extends Math[IOE]{
+
+def divide(a:Int, b:Int) = ioeffect.IO.syncCatch[Error, Int](a/b)(genErrorHandler)
+
+} 
+
+class ConsoleLogging extends Logging[IOE] {
+
+def logInfo(s:String) = ioeffect.IO.syncCatch[Error, Unit](println(s))(genErrorHandler)
+
+}
+
+import Scalaz._
+def program[F[_]: Monad](logger: Logging[F], math: Math[F]) = {
+val res = for {
+- <- logger.logInfo(s"starting up")
+c <- math.divide(10, 2)
+
+} yield c
+
+res
+}
+//type iot[A] = ioeffect.IO[Throwable, A]
+//val a = implicitly(Monad[ioeffect.IO[Throwable, ?]])
+
+
+// Given an effect F[_]
+def programInIOConcrete(logger: ConsoleLogging, math: MathInterpreter)= {
+val res = for {
+- <- logger.logInfo(s"starting up")
+c <- math.divide(10, 2)
+
+} yield c
+
+res
+}
+
+
+
+// Given an effect F[_] Or a type constructor.
+// great...functions should be as accepting as possible on consumer side and as specific as possible in producer side 
+def programInIO[F[A] <: IOE[A]](logger: Logging[F], math: Math[F])= {
+val res = for {
+- <- logger.logInfo(s"starting up")
+c <- math.divide(10, 2)
+
+} yield c
+
+res
+}
+
+def programInIOE(logger: Logging[IOE], math: Math[IOE])= {
+val res = for {
+- <- logger.logInfo(s"starting up")
+c <- math.divide(10, 2)
+
+} yield c
+
+res
+}
+
+val out = programInIOE(new ConsoleLogging(), new MathInterpreter())
+
+object MyApp extends RTS {
+
+def run = unsafePerformIO(out.attempt)
+}
+
+MyApp.run
+
+
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+import scalaz._
+import scalaz.ioeffect._
+import scala.language.higherKinds
+defined trait Error
+defined class GeneralError
+defined class DivideByZeroError
+defined trait Math
+defined trait Logging
+defined type alias IOE
+[1m[34mgenErrorHandler[0m: [1m[32mPartialFunction[Throwable,Error][0m = <function1>
+[1m[34mtest[0m: [1m[32mIOE[Int][0m = scalaz.ioeffect.IO$FlatMap@6bbff66f
+defined class MathInterpreter
+defined class ConsoleLogging
+import Scalaz._
+[1m[34mprogram[0m: [1m[32m[F[_]](logger: Logging[F], math: Math[F])(implicit evidence$1: scalaz.Monad[F])F[Int][0m
+[1m[34mprogramInIOConcrete[0m: [1m[32m(logger: ConsoleLogging, math: MathInterpreter)scalaz.ioeffect.IO[Error,Int][0m
+[1m[34mprogramInIO[0m: [1m[32m[F[A] <: IOE[A]](logger: Logging[F], math: Math[F])scalaz.ioeffect.IO[Error,Int][0m
+[1m[34mprogramInIOE[0m: [1m[32m(logger: Logging[IOE], math: Math[IOE])scalaz.ioeffect.IO[Error,Int][0m
+[1m[34mout[0m: [1m[32mscalaz.ioeffect.IO[Error,Int][0m = scalaz.ioeffect.IO$FlatMap@2bc0ea42
+defined object MyApp
+starting up
+[1m[34mres1[0m: [1m[32mError \/ Int[0m = \/-(5)
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+
+** Parser combinators
+https://www.evernote.com/shard/s19/nl/2288924/e1afb66e-da51-4cb7-8be5-80bfe25dac45/
+http://www.lihaoyi.com/post/EasyParsingwithParserCombinators.html
+https://henkelmann.eu/2011/01/an-introduction-to-scala-parser-combinators---part-1-parser-basics/
+
+abstract class Parser[+T] extends (Input => ParseResult[T]) {
+    private var name: String = ""
+    def named(n: String): this.type = {name=n; this}
+    override def toString() = "Parser ("+ name +")"
+
+    /** An unspecified method that defines the behaviour of this parser. */
+    def apply(in: Input): ParseResult[T]
+
+    def flatMap[U](f: T => Parser[U]): Parser[U]
+      = Parser{ in => this(in) flatMapWithNext(f)}
+
+    def map[U](f: T => U): Parser[U] //= flatMap{x => success(f(x))}
+      = Parser{ in => this(in) map(f)}
+
+#+BEGIN_SRC scala
+
+trait Parser[+T] extends (String => Either[String, T]) {
+
+// why-o-why you need a constructor like this
+def Parser[T](f: String => Either[String, T]): Parser[T]
+    = new Parser[T]{ def apply(in: String) = f(in) }
+
+def apply(in: String): Either[String, T]
+def map[U](f: T => U): Parser[U] 
+//...couldnt you have done new Parser[U] { def apply(in) = this(in) map f} 
+// apply to get Either[,T]and then map to Either[,U]
+// So parser u has reference to parser[t]..because
+      = Parser { in => this(in) map(f)}
+
+}
+
+
+
+
+
+#+END_SRC
+
+#+RESULTS:
+: defined trait Parser
+: 
+: ob_scala_eol[35m
+: scala> [0m[35m
+: scala> [0m
+
+
+**** Natural transformation between ParseResult and IOE
+
+ParseResult[+T] ~> IOE[T]
+
+case Erro => ParseError( msg = type: Fatal)
+case Success => ParseError
+
+IOE[ParseResult[+T]] -> IOE[T]
+
+***** Catching exception and parse error - this might be overkill
+IO.syncCatch to catch unhandled exceptions. you get IO[error, Parseresult[T]]
+flatmap with (parseResult => IO[Error, T]
+
+How do i flip the order..catch exception last
+
+
+
+
+#+BEGIN_SRC scala
+
+import scala.util.parsing.combinator._
+
+object Calculator extends RegexParsers {
+  def number: Parser[Double] = """\d+(\.\d*)?""".r ^^ { _.toDouble }
+  def factor: Parser[Double] = number | "(" ~> expr <~ ")"
+  def term  : Parser[Double] = factor ~ rep( "*" ~ factor | "/" ~ factor) ^^ {
+    case number ~ list => (number /: list) {
+      case (x, "*" ~ y) => x * y
+      case (x, "/" ~ y) => x / y
+    }
+  }
+  def expr  : Parser[Double] = term ~ rep("+" ~ log(term)("Plus term") | "-" ~ log(term)("Minus term")) ^^ {
+    case number ~ list => list.foldLeft(number) { // same as before, using alternate name for /:
+      case (x, "+" ~ y) => x + y
+      case (x, "-" ~ y) => x - y
+    }
+  }
+
+  def apply(input: String): Double = parseAll(expr, input) match {
+    case Success(result, _) => result
+    case failure : NoSuccess => scala.sys.error(failure.msg)
+  }
+}
+
+
+Calculator("10*3 + 5")
+val parseResult = Calculator.parseAll(Calculator.expr, "10 * 5 + 10*3 + abc")
+
+import scalaz.ioeffect.IO
+import scalaz.~>
+//import  scala.util.parsing.combinator.ParseResult
+
+trait Error
+case class ParseError(msg: String) extends Error
+
+type IOE[T] = IO[Error, T]
+
+import scala.util.parsing.combinator.Parsers
+
+//classOf[Calculator.ParseResult[T]]
+
+def resultify(p: Parsers) = new (p.ParseResult ~> IOE) {
+def apply[T](pr: p.ParseResult[T]) = pr match {
+case p.Success(e, _) => IO.point(e)
+case p.Failure(msg, _) => IO.fail(ParseError(msg))
+case p.Error(msg, _) => IO.fail(ParseError(msg))
+}
+}
+
+def transformToIOE[T](p: Parsers): IO[Error, T] = { pr: p.ParseResult[T] => pr match {
+case p.Success(e, _) => IO.point(e)
+case p.Failure(msg, _) => IO.fail(ParseError(msg))
+case p.Error(msg, _) => IO.fail(ParseError(msg))
+ }
+}
+
+transformToIOE(Calculator)(parseResult)
+
+
+resultify(Calculator)(parseResult)
+
+import scalaz.ioeffect._
+object MyApp extends RTS {
+def run = unsafePerformIO(resultify(Calculator)(parseResult).attempt)
+}
+
+val prioe: IOE[Calculator.ParseResult[Double]] = IO.syncCatch(parseResult){case t:Throwable => ParseError(t.getMessage)} 
+
+val ioDouble = prioe flatMap (pr => resultify(Calculator)(pr))
+
+/*val myio = IO.sync{ Calculator.parseAll(Calculator.expr, "10 * 5 + 10*3 + 5/0") match {
+
+case Success(e, _) => IO.point(e)
+case Failure(msg, _) => IO.fail(ParseError(msg))
+}}*/
+
+MyApp.run
+
+/*for {
+vprioe <- IO.syncCatch(parseResult){case t:Throwable => ParseError(t.getMessage)} 
+viod <- resultify(Calculator)(vprioe)
+} yield viod
+*/
+
+
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+import scala.util.parsing.combinator._
+defined object Calculator
+trying Plus term at scala.util.parsing.input.CharSequenceReader@1a9fc140
+Plus term --> [1.9] parsed: 5.0
+[1m[34mres182[0m: [1m[32mDouble[0m = 35.0
+trying Plus term at scala.util.parsing.input.CharSequenceReader@53ebd365
+Plus term --> [1.14] parsed: 30.0
+trying Plus term at scala.util.parsing.input.CharSequenceReader@12ccd5d3
+Plus term --> [1.17] failure: `(' expected but `a' found
+
+10 * 5 + 10*3 + abc
+                ^
+[1m[34mparseResult[0m: [1m[32mCalculator.ParseResult[Double][0m =
+[1.17] failure: `(' expected but `a' found
+
+10 * 5 + 10*3 + abc
+                ^
+import scalaz.ioeffect.IO
+import scalaz.$tilde$greater
+defined trait Error
+defined class ParseError
+defined type alias IOE
+import scala.util.parsing.combinator.Parsers
+[1m[34mresultify[0m: [1m[32m(p: scala.util.parsing.combinator.Parsers)p.ParseResult ~> IOE[0m
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval1425ykX:251: [31merror: [0mtype mismatch;
+ found   : p.ParseResult[T] => scalaz.ioeffect.IO[_ <: ParseError, _ <: T]
+ required: scalaz.ioeffect.IO[Error,T]
+def transformToIOE[T](p: Parsers): IO[Error, T] = { pr: p.ParseResult[T] => pr match {
+                                                                         ^
+[1m[34mres183[0m: [1m[32mscalaz.ioeffect.IO[_ <: ParseError, _ <: Double][0m = scalaz.ioeffect.IO$Fail@46c79118
+[1m[34mres184[0m: [1m[32mIOE[Double][0m = scalaz.ioeffect.IO$Fail@509b0d1e
+import scalaz.ioeffect._
+defined object MyApp
+[1m[34mprioe[0m: [1m[32mIOE[Calculator.ParseResult[Double]][0m = scalaz.ioeffect.IO$FlatMap@7f5d98ef
+[1m[34mioDouble[0m: [1m[32mscalaz.ioeffect.IO[Error,Double][0m = scalaz.ioeffect.IO$FlatMap@359ce3a6
+[1m[34mres187[0m: [1m[32mError \/ Double[0m = -\/(ParseError(`(' expected but `a' found))
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+
+** Dependent Types
+#+BEGIN_SRC scala
+
+trait Reader {
+def parserInreader
+}
+
+
+trait Something {
+
+type Parser  <: Reader
+type Event
+
+parse(input: String, parser: Parser): Event = parser.parseInReader(input)
+
+}
+
+object ConsoleParser extends Something {
+
+type Parser = ConsoleRecordReader
+type Event = CanonicalLogEvent
+
+parse(input, new ConsoleRecordReader()) = 
+}
+
+#+END_SRC
+
+
+**** Wierd polymorphism problem
+
+#+BEGIN_SRC scala
+
+import scala.util.parsing.combinator._
+import scalaz.Scalaz._
+import scala.language.higherKinds
+
+class Calculator extends RegexParsers {
+  def number: Parser[Double] = """\d+(\.\d*)?""".r ^^ { _.toDouble }
+  def factor: Parser[Double] = number | "(" ~> expr <~ ")"
+  def term  : Parser[Double] = factor ~ rep( "*" ~ factor | "/" ~ factor) ^^ {
+    case number ~ list => (number /: list) {
+      case (x, "*" ~ y) => x * y
+      case (x, "/" ~ y) => x / y
+    }
+  }
+  def expr  : Parser[Double] = term ~ rep("+" ~ log(term)("Plus term") | "-" ~ log(term)("Minus term")) ^^ {
+    case number ~ list => list.foldLeft(number) { // same as before, using alternate name for /:
+      case (x, "+" ~ y) => x + y
+      case (x, "-" ~ y) => x - y
+    }
+  }
+
+  def apply(input: String): Double = parseAll(expr, input) match {
+    case Success(result, _) => result
+    case failure : NoSuccess => scala.sys.error(failure.msg)
+  }
+}
+
+class SMCalculator extends RegexParsers {
+  def number: Parser[Double] = """\d+(\.\d*)?""".r ^^ { _.toDouble }
+  def factor: Parser[Double] = number | "(" ~> expr <~ ")"
+  def term  : Parser[Double] = factor ~ rep( "*" ~ factor | "/" ~ factor) ^^ {
+    case number ~ list => (number /: list) {
+      case (x, "*" ~ y) => x * y
+      case (x, "/" ~ y) => x / y
+    }
+  }
+  def expr  : Parser[Double] = term ~ rep("+" ~ log(term)("Plus term") | "-" ~ log(term)("Minus term")) ^^ {
+    case number ~ list => list.foldLeft(number) { // same as before, using alternate name for /:
+      case (x, "+" ~ y) => x + y
+      case (x, "-" ~ y) => x - y
+    }
+  }
+
+  def apply(input: String): Double = parseAll(expr, input) match {
+    case Success(result, _) => result
+    case failure : NoSuccess => scala.sys.error(failure.msg)
+  }
+}
+
+trait ParsingFixture {
+
+type T <: Parsers
+
+type Result
+type Input
+type Container[_]
+
+def parse(in:String): Double 
+def parseAll(in:Input): Container[Parsers#ParseResult[Result]]
+
+}
+
+class ConsoleParsingFixture extends ParsingFixture {
+type T = Calculator
+type Result = Double
+type Input = List[String]
+type Container = List
+
+ def parse(in:String) = { val parser = new T()
+parser(in)} 
+def parseAll(in:Input) = { 
+val parser = new T()
+in.map(s => parser.parseAll(parser.expr, s))}
+
+
+}
+
+class SMParsingFixture extends ParsingFixture {
+type T = SMCalculator
+type Result = Double
+type Input = String
+type Container = Id
+
+ def parse(in:Input) = { val parser = new T()
+parser(in)} 
+def parseAll(in:Input) =  { 
+     val parser = new T()
+     parser.parseAll(parser.number, in)
+} 
+
+
+}
+
+def getFixture(filetype:String) : ParsingFixture = filetype match {
+case "console" =>  new ConsoleParsingFixture()
+case "sm" => new SMParsingFixture()
+}
+
+val cpf = getFixture("console")
+val spf = getFixture("sm")
+
+
+//cpf.parseAll("10*3").get
+spf.parseAll("450").get
+
+cpf.multilines(List("20*3", "45*2"))
+
+
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+import scala.util.parsing.combinator._
+import scalaz.Scalaz._
+import scala.language.higherKinds
+defined class Calculator
+defined class SMCalculator
+defined trait ParsingFixture
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval1425aZN:106: [31merror: [0mtype List takes type parameters
+type Container = List
+                 ^
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval1425aZN:106: [31merror: [0mtype Id takes type parameters
+type Container = Id
+                 ^
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval1425aZN:104: [31merror: [0mtype mismatch;
+ found   : ConsoleParsingFixture
+ required: ParsingFixture
+case "console" =>  new ConsoleParsingFixture()
+                   ^
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval1425aZN:105: [31merror: [0mtype mismatch;
+ found   : SMParsingFixture
+ required: ParsingFixture
+case "sm" => new SMParsingFixture()
+             ^
+[1m[34mcpf[0m: [1m[32mParsingFixture[0m = ConsoleParsingFixture@3ffcfe15
+[1m[34mspf[0m: [1m[32mParsingFixture[0m = SMParsingFixture@61740c19
+[1m[34mres54[0m: [1m[32mspf.Result[0m = 450.0
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval1425aZN:102: [31merror: [0mvalue multilines is not a member of ParsingFixture
+cpf.multilines(List("20*3", "45*2"))
+    ^
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+
+** Parametricity
+https://www.youtube.com/watch?v=D0Fnzr15BAU&t=0s&index=40&list=PLsEs3SEDe2mi7smZdBUyBxQIKrwT8MKXS
+Main goal here is to limit the entropy on function. The generic parameters actually make implementation
+specific. I believe this is the essence of how to do design in functional programs.
+What does it mean to have Functor, Applicative, Monad, Foldable, Traverse. 
+Also "abstracting over.." means making implementation more generic
+Challenge is its hard to find these abstractions on typical tasks. For e.g
+
+~def split(delim:Regex, in:String): List[String]~
+
+really its going ~(A,B)=>F[B]~. ~B => F[B]~ is flatmap.
+Can we try bifunctor ...nope
+Also is it really ~ A,B => F[C]
+
+mpilquist videos are informative
+
+
+** Quantification
+
+#+BEGIN_SRC scala
+/** Abstract signature */
+def binarySearch(i: Int, repr: Vector[Int]): (Boolean, Int) = ??? /* elided */
+
+trait IntSet {
+  type Repr
+
+  def empty: Repr
+  def add(i: Int, repr: Repr): Repr
+  def contains(i: Int, repr: Repr): Boolean
+}
+
+/** Concrete implementation */
+object VectorIntSet extends IntSet {
+  type Repr = Vector[Int]
+
+  def empty: Repr = Vector.empty
+
+  def add(i: Int, repr: Repr): Repr = {
+    val (isMember, indexOf) = binarySearch(i, repr)
+    if (isMember) repr
+    else {
+      val (prefix, suffix) = repr.splitAt(indexOf)
+      prefix ++ Vector(i) ++ suffix
+    }
+  }
+
+  def contains(i: Int, repr: Repr): Boolean =  binarySearch(i, repr)._1
+}
+
+/////////////// Another example ///////////////
+
+trait UnixFiles {
+type File
+def open(path: String): File
+def read(f: File): String
+}
+
+class StringFile extends UnixFiles {
+type File = String
+
+def open(path: String) = "File1.ext"
+def read(f: File) = "File content blah blah"
+
+}
+
+def fileio(files: UnixFiles)= {
+
+val f = files.open("/data/file1")
+val txt = files.read(f)
+txt
+
+}
+
+val sf = new StringFile()
+fileio(sf)
+ 
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+[1m[34mbinarySearch[0m: [1m[32m(i: Int, repr: Vector[Int])(Boolean, Int)[0m
+defined trait IntSet
+defined object VectorIntSet
+defined trait UnixFiles
+defined class StringFile
+[1m[34mfileio[0m: [1m[32m(files: UnixFiles)String[0m
+[1m[34msf[0m: [1m[32mStringFile[0m = StringFile@75428ab2
+[1m[34mres96[0m: [1m[32mString[0m = File content blah blah
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+
+
+** Parser combinator
+
+How is this compiling..without having def ~ in new Parser ???
+Well ~ is implemented ..so instance need not have it. but its a recursive definition
+
+How is the "charToparse" stored in Parser function 1 ...just in apply
+Can we generalise this
+
+#+BEGIN_SRC scala
+import cats._
+
+trait ParseResult[T]
+case class Success[T](result: T, next:String) extends ParseResult[T]
+case class ParseError[T](msg: String) extends ParseResult[T]
+
+implicit def prFunctor: Functor[ParseResult] = new Functor[ParseResult] {
+def map[T,U](pt: ParseResult[T])(f: T => U): ParseResult[U] = pt match {
+case Success(result, next) => Success(f(result), next)
+case pe:ParseError[T] => ParseError[U]("error in functor")
+
+} 
+}
+
+
+
+
+
+
+trait Parser[T] extends (String => ParseResult[T]){ self =>
+
+def apply(in:String):ParseResult[T]
+def ~(q: Parser[T]): Parser[T] = new Parser[T] {
+def apply(in: String) = self.apply(in) match {
+case Success(_, n) => q(n)
+case ParseError(_) => ParseError("not found")
+  }
+ }
+
+def |(q: Parser[T]):Parser[T] = new Parser[T] {
+def apply(in:String) = (self.apply(in), q(in)) match {
+case (Success(pr, pn), _) => Success(pr,pn)
+case (ParseError(_), Success(qr, qn)) => Success(qr,qn)
+case _ => ParseError("neither matched") 
+
+}
+}
+
+def ^^[U](f: PartialFunction[T,U]): Parser[U] = new Parser[U]{
+      def apply(in:String): ParseResult[U] =
+{
+val fpr = implicitly(Functor[ParseResult]) 
+fpr.map[T,U](self.apply(in))(f) 
+}
+}
+}
+
+object Parser {
+
+def apply(charToParse: Char):Parser[Char] = new Parser[Char]{
+def apply(in:String) = in.head match {
+case `charToParse` => Success(charToParse, in.tail)
+case _  => ParseError("not found")}
+} 
+
+}
+
+val p = Parser('N')
+
+val pqr = Parser('N') ~ Parser('A') ~ Parser('R')
+
+p("Naren")
+pqr("NAREN")
+p("Noreen")
+
+ val porq = (Parser('N') | Parser('K')) ~ Parser ('A') ~ Parser('R') ~ Parser('E') ~ Parser('N')
+
+porq("KAREN")
+
+val n = Parser('a') ^^ { case c:Char => c.toInt } 
+n("a1234")
+
+
+
+
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+import cats._
+defined trait ParseResult
+defined class Success
+defined class ParseError
+[1m[34mprFunctor[0m: [1m[32mcats.Functor[ParseResult][0m
+defined trait Parser
+warning: previously defined object Parser is not a companion to trait Parser.
+Companions must be defined together; you may wish to use :paste mode for this.
+defined object Parser
+warning: previously defined trait Parser is not a companion to object Parser.
+Companions must be defined together; you may wish to use :paste mode for this.
+[1m[34mp[0m: [1m[32mParser[Char][0m = <function1>
+[1m[34mpqr[0m: [1m[32mParser[Char][0m = <function1>
+[1m[34mres392[0m: [1m[32mParseResult[Char][0m = Success(N,aren)
+[1m[34mres393[0m: [1m[32mParseResult[Char][0m = Success(R,EN)
+[1m[34mres394[0m: [1m[32mParseResult[Char][0m = Success(N,oreen)
+[1m[34mporq[0m: [1m[32mParser[Char][0m = <function1>
+[1m[34mres395[0m: [1m[32mParseResult[Char][0m = Success(N,)
+[1m[34mn[0m: [1m[32mParser[Int][0m = <function1>
+[1m[34mres396[0m: [1m[32mParseResult[Int][0m = Success(97,1234)
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+**** Automatic delimiter detection
++ Parametricity
+  + can we add split implementation at abstract level - probably not
+  + what can be pulled out splitting logic
+
+#+BEGIN_SRC scala
+
+trait Splitter[I,O,D]{ self =>
+
+def delimiterExists: (I,D) => Boolean
+def split(i:I): O
+// in case of par
+def |(that: Splitter[I,O,D1]): Splitter[I,O,D] = new Splitter[I,O,D] {
+
+def delimiterExists = 
+def split(i:I) = self.split(i) match {
+
+case Success => 
+
+ /*self.delimiterExists match {
+
+case true => self
+case false if that.delimiterExists => that
+case _ => self*/
+
+def split(in:I):O // if this.checkdelimexists(in) then self.split
+
+
+}
+}
+/* implicit def consoleSplitter = new Splitter {
+def delimiterExists = (in, d) => in.contains(d)
+def split(in:String, d: String): List[String] = in.split(d)
+} */
+
+object Splitter {
+def apply(delimiter:String) = new Splitter[String, List[String], String] {
+                  def delimiterExists = {(in:String, d:String) => in.contains(d)}
+                  def split(in:String) =  delimiterExists(in, delimiter) match {
+                                 case true => in.split(delimiter)
+                                 case false => List("none") 
+            }  
+}
+}
+
+val splitterRule =  Splitter("timesreegex1") | Splitter("regex2")
+
+splitterRule.split("narendra-chennamsetty")
+
+
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval843F8P:9: [31merror: [0millegal start of simple expression
+def split(i:I) = self.split(i) match {
+^
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval843F8P:1: [31merror: [0millegal start of definition
+case Success =>
+^
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval843F8P:10: [31merror: [0meof expected but '}' found.
+}
+^
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval843F8P:1: [31merror: [0meof expected but '}' found.
+}
+^
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval843F8P:149: [31merror: [0mtype mismatch;
+ found   : (String, String) => Boolean
+ required: Boolean
+                  def delimiterExists = {(in:String, d:String) => in.contains(d)}
+                                                               ^
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval843F8P:151: [31merror: [0mtype mismatch;
+ found   : Array[String]
+ required: List[String]
+                                 case true => in.split(delimiter)
+                                                      ^
+[1m[34msplitterRule[0m: [1m[32mSplitter[String,List[String],String][0m = Splitter$$anon$1@35dc57b2
+[1m[34mres244[0m: [1m[32mList[String][0m = List(narendra, chennamsetty)
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+
+** F-bounded polymorphism
+This is from tpolecat's blog
+http://tpolecat.github.io/2015/04/29/f-bounds.html
+#+BEGIN_SRC scala
+
+trait Pet {
+  def name: String
+  def renamed(newName: String): Pet
+}
+
+case class Fish(name: String, age: Int) extends Pet {
+  def renamed(newName: String): Fish = copy(name = newName)
+}
+
+case class Kitty(name: String, color: String) extends Pet {
+  def renamed(newName: String): Fish = new Fish(newName, 42) // oops
+}
+// why is this a problem - return type of renamed is not specific enough
+// change to return Pet and it compiles 
+//def esquire[A <: Pet](a: A): A = a.renamed(a.name + ", Esq.")
+
+
+trait Pet[A <: Pet[A]] {
+  def name: String
+  def renamed(newName: String): A // note this return type
+}
+
+case class Fish(name: String, age: Int) extends Pet[Fish] { // note the type argument
+  def renamed(newName: String) = copy(name = newName)
+}
+
+
+case class Kitty(name: String, age: Int) extends Pet[Kitty] { 
+  def renamed(newName: String) = copy(name = newName)
+}
+
+// you can't create kitty that extends fish
+
+def esquire[A <: Pet[A]](a: A): A = a.renamed(a.name + ", Esq.")
+
+val a = esquire(new Kitty(name = "pussinboots", age= 1))
+
+
+case class Kitty(name: String, age: Int) extends Pet[Fish] { // oops
+  def renamed(newName: String): Fish = new Fish(newName, 42)
+}
+
+
+
+trait Pet {
+  def name: String
+}
+// Add Rename behavior
+trait Rename[A] {
+  def rename(a: A, newName: String): A
+}
+implicit class RenameOps[A](a: A)(implicit ev: Rename[A]) {
+  def renamed(newName: String) = ev.renamed(a, newName)
+}
+// take a pet which has Rename typeclass instance. A pet that is renameable
+def esquire[A <: Pet : Rename](a: A): A = a.renamed(a.name + ", Esq.")
+
+
+
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+defined trait Pet
+defined class Fish
+defined class Kitty
+defined trait Pet
+defined class Fish
+defined class Kitty
+[1m[34mesquire[0m: [1m[32m[A <: Pet[A]](a: A)A[0m
+[1m[34ma[0m: [1m[32mKitty[0m = Kitty(pussinboots, Esq.,1)
+defined class Kitty
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+
+
+#+BEGIN_SRC scala
+import scala.language.higherKinds
+
+trait Logfile {
+def name:String
+def bundleName:String
+def logtype:String
+def content:String
+}
+
+case class ConsoleFile(name:String, bundleName:String, logtype:String, content:String) extends Logfile
+case class SMSlaFile(name:String, bundleName:String, logtype:String, content:String) extends Logfile
+
+type CanonicalEvent = String
+
+class ConsoleParser {
+
+ def parse(s:String, sp: Splitter) = s.split(",").toList
+}
+
+
+class SMParser {
+ def parse(s:String) = "SM---".concat(s).split(",").toList
+}
+
+type EC = Either[String, List[CanonicalEvent]]
+
+trait CanonicalParse[T]{
+  def parse(lf:T): EC
+}
+
+object CanonicalParse {
+
+implicit val consoleCanonParser = new CanonicalParse[ConsoleFile]{
+    def parse(lf: ConsoleFile) = Right(new ConsoleParser().parse(lf.content))
+}
+}
+
+object CanonicalParseOps{
+
+def parse[T:CanonicalParse](lf: T)  = {
+val cp = implicitly[CanonicalParse[T]]
+cp.parse(lf)
+
+}
+}
+
+val c = ConsoleFile("bundle1.console", "targ.gz", "console", content = "2018-05-12 10:00 , info, exception")  
+
+import CanonicalParse._
+CanonicalParseOps.parse(c)
+
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+import scala.language.higherKinds
+defined trait Logfile
+defined class ConsoleFile
+defined class SMSlaFile
+defined type alias CanonicalEvent
+defined class ConsoleParser
+warning: previously defined object ConsoleParser is not a companion to class ConsoleParser.
+Companions must be defined together; you may wish to use :paste mode for this.
+defined class SMParser
+warning: previously defined object SMParser is not a companion to class SMParser.
+Companions must be defined together; you may wish to use :paste mode for this.
+defined type alias EC
+defined trait CanonicalParse
+warning: previously defined object CanonicalParse is not a companion to trait CanonicalParse.
+Companions must be defined together; you may wish to use :paste mode for this.
+defined object CanonicalParse
+warning: previously defined trait CanonicalParse is not a companion to object CanonicalParse.
+Companions must be defined together; you may wish to use :paste mode for this.
+defined object CanonicalParseOps
+[1m[34mc[0m: [1m[32mConsoleFile[0m = ConsoleFile(bundle1.console,targ.gz,console,2018-05-12 10:00 , info, exception)
+import CanonicalParse._
+[1m[34mres232[0m: [1m[32mEC[0m = Right(List(2018-05-12 10:00 ,  info,  exception))
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+
++ Questions
+  + how do i tie the parser to the file..should i even bother?
+  + Adding a type parm to CanonicalParse will require you to pass Parser type on user side
+    + violation of information hiding
+    + will leave that as it is right now
+  + how will this splitting work ?
+    + Certain files need to be split. they need splitter rules for this. 
+    + Can you make "must-split" as constraint on parser
+      + Constructor parameter
+        + Assign a default splitter to a parser on construction
+      + Typeclass Cansplit[Logfile]
+        + Splitter on string on Regex is generic 
+    + wish there was a way..where if you know the file type - you attach
+  + Nothing really happening on high level abstraction
+
+** Coyoneda
+https://mpilquist.github.io/blog/2017/03/11/stackless-function-composition/
+
++ An application of Coyoneda to do stackless function composition
+  + is this just trampolining?
+  + composition of stackless function
+
+** Type Lambda syntax
+** FS2 Streams
+
+https://wwwi.youtube.com/watch?v=TXxzMF14pxU
++ Notes
+  + Scheduler
+  + Typeclass for Effects
+  + evalMap - sort of like map and flatmap. we have Stream, F, A and f: A => F[B]  
+  + pipes and filters - in 0.10 filter, join unNoneTerminate are just methods on stream vs being separate types
+  + Segments
+    + chunks is a strict, collection, finite size - created because vector was expensive 32 bytes for singleton element
+      + different implentations - backed by an array etc.,
+    + Segment - has output values O or result R
+      + unconschunk - uncons a chunk of values as opposed to uncons1
+    + FreeC
+    + Pull - pull and stream are same
+
+*** FS2 Concurrency
+https://www.youtube.com/watch?v=8YxcB6PIUDg
+
+
++ observe - sends stream to sink
++ randomDelays - non-deterministically add delays. The delay is implemented thru Task.delay. Blocking is semantic but no thread is actually
+blocked
+
++ interleave - interleaves stream ..even with random delays
+  + what will be the type if 
++ merge - emits element whenever an element is available
+  + both stream should have same type of values
+  + concurrency pattern
++ either - Stream types dont have to match. you get Left or Right elements
+
++ merging three or more streams
+  + you can do pairwise merge
+  + what if Stream of Streams
++ join - merging stream of streams
+  + maxopen - how many streams in parallel
+  + what if maxopen < total number of streams to merge
+    + merges `maxopen` number of streams at a time
++ Signal
+  + Signal[F[_], A] 
+    + memory cell with single value of A. 
+    + you need F to read/write
+    + discrete - all changed values go into a Steam
+    + continuous - everytime a stream pulls , current value of signal is returned
+    + 36:34 Task doen't wrap a value but describes a computation to get the value - makes sense
+    + 47:53 .. monitor stream is run concurrently with writer using merge. A
+      + monitor is infinite, data is finite..it will hang when data is done
++ mergeHaltBoth - terminates when either of stream is terminated
++ semaphore - java.util.concurrent Pthread
++ Bounded Queue - by putting together semaphore and signal
+  + dequeue1 - pops one element, dequeue - gives a stream
+  + enqueue1 - puts an element,
+
+*** API documentation
++ Segment[O,R] - seq of pure values, has no effect
+  + fold ..folds element into Result
+    + force is used to force the evaluation
+      + run on force gets you the R
+        Segment(1,2,3,4).fold(0)(_+_).force.run
+         res22: (Unit, Int) = ((),10)
+
+       Segment(1,2,3,4).map[Int](_*2).force.toVector
+       res26: Vector[Int] = Vector(2, 4, 6, 8)
+
++ Pull
+***** Gitter
+Martijn Hoekstra @martijnhoekstra Feb 01 13:08
+Is there an fs2 type that describes effects producing a sequence of As, and after that eventually a single B?
+
+Fabio Labella @SystemFw Feb 01 13:15
+Pull
+Is the closest thing
+
+Martijn Hoekstra @martijnhoekstra Feb 01 13:40
+I don't quite "get" Pull. I can call .stream on it, and that will give me a Stream[A], and there is also some R involved, but there are no methods that actually do something with that R - also not as an "end of the world" operation
+
+Michael Pilquist @mpilquist Feb 01 13:40
+flatMap is the key method that operates on R
+Stream and Pull are two different monads on the same underlying data type
+Stream#flatMap is the list-style monad -- map and concat the output values
+Pull#flatMap is a monad on R -- a Pull[F,O,R] may evaluate effects in F, output values of O, and finishes with a single result of R -- the monad gives you that final R value so you can compute what to do next
+Hence, s1 ++ s2 is really the same as converting to pulls and then doing p1.flatMap(_ => p2)
+
+Fabio Labella @SystemFw Feb 01 13:45
+I didn't get this either at first back when I started out, but it's actually one of the best design choices in fs2 imo
+
+Martijn Hoekstra @martijnhoekstra Feb 01 13:49
+if I have a Pull[F, O, R1], and an R1 => Pull[F, O, R2], and I want to "keep reading O's till the "end" of the stream from p1, and then continue with O's from p2", is that a thing?
+
+Michael Pilquist @mpilquist Feb 01 13:49
+yep, that's just flatMap
+
+Martijn Hoekstra @martijnhoekstra Feb 01 13:50
+how do i then get access to the "List-monadic" combined stream of O's
+
+Michael Pilquist @mpilquist Feb 01 13:51
+convert back to stream
+ val p1: Pull[F, O, R1] = ???
+val f: R1 => Pull[F, O, R2] = ???
+val all: Stream[F, O] = p1.flatMap(f).stream
+
+Martijn Hoekstra @martijnhoekstra Feb 01 13:55
+ah!
+how do I create a Pull?
+
+Jose C @jmcardon Feb 01 14:01
+you can transform a stream into a pull and back again
+one of the coolest things I've found a use for is you can evaluate effects into the R then emit
+
+Michael Pilquist @mpilquist Feb 01 14:03
+here a few different ways:
+@ Pull.pure(42) // Outputs nothing and completes with 42
+res5: Pull[Nothing, Nothing, Int] = fs2.Pull@de6566d4
+
+@ Pull.output1(1) // Outputs a single value 1 and completes with ()
+res6: Pull[Nothing, Int, Unit] = fs2.Pull@527c80fe
+
+@ Pull.output(Segment(1,2,3)) // Outputs 1, 2, and then 3 and completes with ()
+res7: Pull[Nothing, Int, Unit] = fs2.Pull@3be994fa
+
+@ Pull.eval(IO(42)) // Outputs nothing but evaluates the effectful value and completes with its result
+res8: Pull[IO, Nothing, Int] = fs2.Pull@90c5c70b
+
+@ Stream(1,2,3).pull.echo // Converts the stream to a pull
+res9: Pull[Pure, Int, Unit] = fs2.Pull@3be994fa
+
+Martijn Hoekstra @martijnhoekstra Feb 01 14:03
+aha
+all of them either have R as Unit or O as Nothing - I should be able to get one that has something that has more in some way, right?
+
+Jose C @jmcardon Feb 01 14:07
+you can
+just depends on how your logic works out
+
+Martijn Hoekstra @martijnhoekstra Feb 01 14:08
+I feel like I'm really grasping just besides the point every time
+I feel like I'm asking "no, I understand all that, but I just need to get the A out of Option[A]"
+
+Jose C @jmcardon Feb 01 14:09
+not sure if it's the best example, but I have a pull that evaluates effects and emits values here: https://github.com/jmcardon/tsec/blob/master/tsec-libsodium/src/main/scala/tsec/libsodium/cipher/XChacha20Poly1305.scala#L179
+
+Michael Pilquist @mpilquist Feb 01 14:09
+@ Pull.pure("Hello").flatMap(greeting => Pull.eval(IO(println(greeting)))).flatMap(_ => Pull.output1(42))
+res12: Pull[IO[x], Int, Unit] = fs2.Pull@eb58794e
+
+Jose C @jmcardon Feb 01 14:10
+or that's a better one
+
+Michael Pilquist @mpilquist Feb 01 14:11
+one thing to note is that when you convert a stream to a pull, you always get R = Unit (because streams don't allow an output value)
+
+Martijn Hoekstra @martijnhoekstra Feb 01 14:13
+but if you pure or eval you get O = Nothing
+so you always have that "flip back and forth" thing
+
+Michael Pilquist @mpilquist Feb 01 14:13
+in the same way that Nil always give you a List[Nothing]
+Pull is covariant in all three type params
+
+Martijn Hoekstra @martijnhoekstra Feb 01 14:14
+I'll try to play with it a bit, hopefully it'll click
+thank you for all the explaining - I think that's all the understanding I can manage for now
+
+Michael Pilquist @mpilquist Feb 01 14:14
+:thumbsup: any time
+ 
+
+#+BEGIN_SRC scala
+  import fs2.Stream
+  import cats.effect.IO
+  import scala.concurrent.Future
+  import scala.language.higherKinds
+
+  val s0 = Stream.empty
+  val s1 = Stream.emit(1)
+  val ss = Stream.emit("naren")
+
+  val s1a = Stream("naren", "katie", "oles")
+  val s1b = Stream.emits(List(1,2,3))
+
+  s1b.toVector
+
+  Stream(1,2,3) ++ Stream(4,5)
+
+  s1b.map(x => x*2) toList
+
+  val eff = Stream.eval(IO { println("printing.."); 1 + 2})
+  import scala.concurrent.ExecutionContext.Implicits.global
+
+  val eff2 = Stream.eval(Future {println("Hello from future"); 2 * 4})
+
+  // Apparently I need Sync[F] implementation
+
+  eff.compile.toVector.unsafeRunSync()
+  //eff2.compile.toList.unsafeRunSync()
+
+  import fs2.Chunk
+  import fs2._
+
+  def tk[F[_],O](n: Long): Pipe[F,O,O] =
+    in => in.scanSegmentsOpt(n) { n =>
+      if (n <= 0) None
+      else Some(seg => seg.take(n).mapResult {
+        case Left((_,n)) => n
+        case Right(_) => 0
+      })
+    }
+
+  Stream(1,2,3,4,5,6,7).through(tk(2)).toList
+
+
+  val errStream = (Stream(1,2) ++ (throw new Exception("nooo!!!")))
+
+  errStream.take(2).toVector
+  errStream.attempt.toVector
+
+val lrg = Stream.range(0,1000)
+
+lrg.pullr
+
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+import fs2.Strimport cats.effect.IO
+import scala.concurrent.Future
+import scala.language.higherKinds
+[1m[34ms0[0m: [1m[32mfs2.Stream[fs2.Pure,Nothing][0m = Stream(..)
+[1m[34ms1[0m: [1m[32mfs2.Stream[fs2.Pure,Int][0m = Stream(..)
+[1m[34mss[0m: [1m[32mfs2.Stream[fs2.Pure,String][0m = Stream(..)
+[1m[34ms1a[0m: [1m[32mfs2.Stream[fs2.Pure,String][0m = Stream(..)
+[1m[34ms1b[0m: [1m[32mfs2.Stream[fs2.Pure,Int][0m = Stream(..)
+[1m[34mres143[0m: [1m[32mVector[Int][0m = Vector(1, 2, 3)
+[1m[34mres144[0m: [1m[32mfs2.Stream[fs2.Pure,Int][0m = Stream(..)
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval8436BA:172: [33mwarning: [0mpostfix operator toList should be enabled
+by making the implicit value scala.language.postfixOps visible.
+This can be achieved by adding the import clause 'import scala.language.postfixOps'
+or by setting the compiler option -language:postfixOps.
+See the Scaladoc for value scala.language.postfixOps for a discussion
+why the feature should be explicitly enabled.
+  s1b.map(x => x*2) toList
+                    ^
+[1m[34mres145[0m: [1m[32mList[Int][0m = List(2, 4, 6)
+[1m[34meff[0m: [1m[32mfs2.Stream[cats.effect.IO,Int][0m = Stream(..)
+import scala.concurrent.ExecutionContext.Implicits.global
+[1m[34meff2[0m: [1m[32mfs2.Stream[scala.concurrent.Future,Int][0m = Stream(..)
+Hello from future
+printing..
+[1m[34mres146[0m: [1m[32mVector[Int][0m = Vector(3)
+import fs2.Chunk
+import fs2._
+[1m[34mtk[0m: [1m[32m[F[_], O](n: Long)fs2.Pipe[F,O,O][0m
+[1m[34mres147[0m: [1m[32mList[Int][0m = List(1, 2)
+[1m[34merrStream[0m: [1m[32mfs2.Stream[Nothing,Int][0m = Stream(..)
+[1m[34mres148[0m: [1m[32mVector[Int][0m = Vector(1, 2)
+[1m[34mres149[0m: [1m[32mVector[Either[Throwable,Int]][0m = Vector(Right(1), Right(2), Left(java.lang.Exception: nooo!!!))
+[1m[34mlrg[0m: [1m[32mfs2.Stream[fs2.Pure,Int][0m = Stream(..)
+[1m[34mres150[0m: [1m[32mfs2.Stream.ToPull[fs2.Pure,Int][0m = fs2.Stream$ToPull@5bd3a666
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+
+**** FS2 Guide examples
+
++ uncons a pull gives head which is segment
+  + Segment is pure sequence of values..unlike Stream, has no effect
+
+
+#+BEGIN_SRC scala
+  import fs2._
+
+/*
+ Pull and Stream are same - pull flatmaps on R, whereas stream flatmaps on O
+ - Way to pop an element from stream would be to use uncons methods on ToPull
+ - Pull.output1(10).flatMap(Pull.output1(20) gives you Stream(10,20) with R as Unit
+ - uncons, Pull.done to check
+*/
+ def sumAdjacentN[F[_],O:Numeric](s: Stream[F, O], n: Long): Pull[F,O, Unit] = {
+     s.pull.unconsLimit(n).flatMap { opt => opt match {
+   case None => Pull.done
+   case Some((seg10, remStream)) => Pull.output1(seg10.sum.force.run).flatMap{_ => sumAdjacentN(remStream, n)}
+        
+     }} 
+}
+
+
+def getAllTarEntries[F[_]](tais: TarArchiveInputStream)(implicit F: Sync[F]): F[String] = {
+  F.delay{ println("reading next entry"); Option(tais.getNextTarEntry)}.flatMap {
+        case Some(tae) => F.delay{ println("next entry is" + tae.getName); tae.getName}.flatMap(_ => getAllTarEntries(tais))
+        case None => F.pure("end")
+ }
+}
+
+def getAllTarEntries[F[_]](tais: TarArchiveInputStream)(implicit F: Sync[F]): Pull[F, String, Unit] = {
+  Pull.eval(F.delay(Option(tais.getNextTarEntry))).flatMap {
+        case Some(tae) => Pull.output1(tae.getName).flatMap(_ => getAllTarEntries(tais))
+        case None => Pull.done
+  }
+}
+
+
+
+#+END_SRC
+
+
+**** Stuff to learn
++ Semaphore
+
+
+*** Community Recipes
++ download files problems
+https://gitter.im/functional-streams-for-scala/fs2/archives/2017/12/07
+
++ BitVector to Byte
+https://gitter.im/functional-streams-for-scala/fs2/archives/2017/12/09
+
+
+*** NList
+#+BEGIN_SRC scala
+
+trait NList
+case object NNil extends NList
+case class Cons[T](h: T, tail: NList) extends NList
+
+object NList {
+
+def ::[T](h:T, tail: NList): NList = Cons(h, tail)
+
+}
+
+
+val hl = NList.::(1, NNil)
+val hl2 = Cons("Naren", hl) 
+
+import NList._
+
+Cons(23.0, hl2)
+
+
+def square(x: Int, y: Int) = x*x + y*y
+
+10 square 20
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+defined trait NList
+warning: previously defined object NList is not a companion to trait NList.
+Companions must be defined together; you may wish to use :paste mode for this.
+defined object NNil
+defined class Cons
+defined object NList
+warning: previously defined trait NList is not a companion to object NList.
+Companions must be defined together; you may wish to use :paste mode for this.
+[1m[34mhl[0m: [1m[32mNList[0m = Cons(1,NNil)
+[1m[34mhl2[0m: [1m[32mCons[String][0m = Cons(Naren,Cons(1,NNil))
+import NList._
+[1m[34mres14[0m: [1m[32mCons[Double][0m = Cons(23.0,Cons(Naren,Cons(1,NNil)))
+[1m[34msquare[0m: [1m[32m(x: Int, y: Int)Int[0m
+/var/folders/kl/j6647xgn5f78nsly9hdwktdw_f4rrh/T/scala-eval1363Qxz:36: [31merror: [0mvalue square is not a member of Int
+10 square 20
+   ^
+
+ob_scala_eol[35m
+scala> [0m[35m
+scala> [0m
+#+end_example
+
+
+*** RecordReader
++ read from tar gz
++ chunk lines to parseable records
++ read from S3
++ write to
+
+
+*** Design thougts
+Implement Sync instance for IO
+
+//This blows up...also I need to carry parseResult
+Stream(1,2,3,4).covary[cats.effect.IO].map(x => 1/(x-4))
+

@@ -1,0 +1,9 @@
+
+
+Type parameter power up
+
+** Variance
+*** Liskov substitution
+   + wikipedia
+*** Higher kindend types
+   + two axes

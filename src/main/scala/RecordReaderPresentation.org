@@ -1,0 +1,44 @@
+#+TITLE:     Gogo ABS Log Processing
+#+AUTHOR:    Narendra Chennamsetty
+#+EMAIL:     nchennamsetty@gogoair.com
+#+DATE:      2018-06-06
+#+DESCRIPTION: 
+#+KEYWORDS: 
+#+LANGUAGE:  en
+#+OPTIONS:   H:3 num:t toc:t \n:nil @:t ::t |:t ^:t -:t f:t *:t <:t
+#+OPTIONS:   TeX:t LaTeX:t skip:nil d:nil todo:t pri:nil tags:not-in-toc
+#+INFOJS_OPT: view:nil toc:nil ltoc:t mouse:underline buttons:0 path:https://orgmode.org/org-info.js
+#+EXPORT_SELECT_TAGS: export
+#+EXPORT_EXCLUDE_TAGS: noexport
+#+LINK_UP:   
+#+LINK_HOME: 
+
+* Introduction
+** Goals
+  - 99.99999% accuracy at the record level
+  - Add more files to parse - messages, journal, KANDU etc.,
+  - High performance low cost
+
+** Objectives
+   - Better Error Reporting
+     + Log file 
+       - Parser errors need to be propagated up
+         - Parser Combinator has ParseResult type that encapsulates them
+       - Deep instrumentation 
+     - AWS Service errors
+       - Metrics on service invocation behavior
+   - Stream parsing
+
+** Application Design
+ - Effectful computation
+
+ - Free structures vs Tagless final
+ - Application algebra
+
+*** Delimiter detection
+
+*** Micro benchmarking
+JMH
+
+*** Flamegraphs
+

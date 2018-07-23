@@ -1,0 +1,4 @@
+project/
+target/
+.ensime_cache/
+.idea

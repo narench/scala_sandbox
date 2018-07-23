@@ -1,0 +1,403 @@
+
+
+** Exercises
+- Write a function that can zip 3 lists
+
+#+BEGIN_SRC scala
+
+def zip3[A,B,C](l1:List[A], b: List[B], c:List[C]): List[(A,B,C)] = ???
+a.zip(b.zip(c))
+
+def zip3[A,B,C](l1:Vector[A], b: Vector[B], c:Vector[C]): Vector[(A,B,C)] = ???
+a.zip(b.zip(c))
+
+def zip[F[_], A, B](fa: F[A], fb: F[B]): F[(A,B)]
+
+
+#+END_SRC
+
+F: Zip[F]
++ F is identifier at Value level
++ other F is at type level
++ just a convention
+
+Write a type class which is
+  -  both A and B
+  - either A or B
+what does this even mean..both A and
+#+BEGIN_SRC scala
+
+trait Product[F[_]]
+def and[A,B](a:A, b:B)= F[(A,B)
+
+trait CoProduct[F[_], A, B]
+
+Soln
+trait And[A,B]{
+left: A
+right: B
+}
+
+
+#+END_SRC
+
+
+def zip3[F[_]:Zip, A: F, B: F, C: F]: F[(A, (B,C)]
+implicitly
+
+implicitly is asking compiler to generate the code
+
++ analogy - prologue you define the logic and write
+
+
+List is a typeclass..given a type 
+
+
+- Define non-empty binary Tree
+
+
+trait Tree[T]
+case class Element(x:T) extends Tree
+case class Node(left:Tree, right: Tree) extends Tree
+
+
+val el = new Element(1)
+val el2 = new Element("naren")
+
+val node = Node(el, el2)
+
+
+Zip[List, Either..] is good for production decision tree
+
+
++ haskell has no covariance contra-variance..no extends
++ Unifier has problem with implicit vals
+
+TyDD is not first class paradigm in scala.
+object oriented ness in scala is a problem
+unifier can simply go to Nothing or Any
+
+Haskell has type classes and data constructors
+
+
+*** Exercise write a 
+
+
+def getTree(id: Int): Either[String, Tree]
+{
+ if (id == 1)
+   
+  
+
+}
+
+
+**** Phantom type
+
+
+https://github.com/dreadedsoftware/2018_ScalaDays_TyDD/blob/master/target/scala-2.12/tut/_05_Coproducts/lesson.md
+haskell data constructor
+
+
+
++ Shapeless has functions where
+ implicit functions have implicit parameter
+
+https://github.com/dreadedsoftware/2018_ScalaDays_TyDD/blob/master/target/scala-2.12/tut/_06_Products/lesson.md
+
+At value level you have a case match
+
+at type level each implcit def is a case statement
+
+your code is a proposition, 
+your application is proof
+
+#+BEGIN_SRC scala
+
+implicit def processProduct[Id, Tree1, Tree2, Tree2](implicit
+    app1: Application[Id, Tree1],
+    app2: Application[Id, Tree2],
+    app3: Application[Id, Tree3]): Application[Id, Tree1 AND Tree2 AND Tree3] =
+    new Application[Id, Tree1 AND Tree2 AND Tree3]{
+      override def process(id: Int): Either[String, Int] = {
+        def wrong(id: String) = Left(id)
+        def right = Right(id)
+        (app1.process(id), app2.process(id), app3.process(id)) match{
+          case (Right(_), Right(_), Right(_) => right
+          case (Right(_), Left(id)) => wrong(id)
+          case (Left(id), Right(_),_) => wrong(id)
+          case (Left(id), _, _) => wrong(id)
+        }
+      }
+    }
+
+#+END_SRC
+
+
+Stack trace vs nested type error
++ apparently he uses some tool to convert nested type errors
+
+Aux
+
+inputs are type parameters and outputs are type members
+
+http://eugeniacheng.com/math/books/:
+
+
+
+Ruby eval metaprogramming
+
+
++ mark tells a story where he re-wrote code used for 7 yrs in 2 weeks
+ + new feature -> new type class instance.
+
+
++ FS2
+  - constant memory
++ PRedef - prelude in haskell
+
+@inline - 35 bytes
+
+Equals.equals is defined on some implicit class
+
+
++ Tag less final
+  + no classtag
+  + category theory is study of composition
+   final is end of composition
+
+trait Thing[_[_]]
+
+To be able to abstract over higher kinded types..Dataset/Stream
+_ goes from specific to generic
+
+
+In order to show `processProduct` and processCoproduct are commutative semigroup up to isomorphism
+
+
+(Application, Application) => Application
+
+So need to prove
+
+Application[Id1 XOR Id2, Tree1 XOR Tree2, Out1 XOR Out2] is same as
+Application[Id2 XOR Id1, Tree2 XOR Tree1, Out2 XOR Out1] 
+
+
+What does semigroup up to isomorphism mean?
++ its not really semigroup but given isomorphism
++ Tuple2[A,B] is not Tuple2[B,A]
+(1," n") is not same as ("n", 1)..but given a function
+jpeg compression is not isomorphic but zip/unzip are
+
+#+BEGIN_SRC scala
+def f[A,B](_a: (A,B)): (B,A) = {
+  val (a,b) = _a
+  (b,a)
+}
+
+def g[A,B](_b: (B,A)): (A,B) = {
+  val (b,a) = _b
+  (a,b)
+
+identity((1, '2')) == f(g('2',1))
+}
+
+
+
+#+END_SRC
+
+
+*** Idris
+vadd: Num a => Vector n a -> Vector n a -> Vector n a
+
+here your saying output vector size is same as inpit
+
+?vadd_rhs = implicitly
+
+
+*** shapeless
+Nat.scala
+
+
++ purpose of Nat to give type level reasoning to number
++ in FP - functions are invariants, in TyDD types are invariants
++ trait Pred[A <: Nat] { type Out <:Nat }
+  + input is type parameter and output is a type member
+  + Out is predecessor of A
+
+
+
+package shapeless
+
+import scala.language.experimental.macros
+
+import scala.annotation.tailrec
+import scala.reflect.macros.whitebox
+
+/**
+ * Base trait for type level natural numbers.
+ *
+ * @author Miles Sabin
+ */
+trait Nat {
+// to prevent type erasure
+  type N <: Nat
+}
+
+/**
+ * Encoding of successor.
+ *
+ * @author Miles Sabin
+ */
+case class Succ[P <: Nat]() extends Nat {
+  type N = Succ[P]
+}
+
+/**
+ * Encoding of zero.
+ *
+ * @author Miles Sabin
+ */
+class _0 extends Nat with Serializable {
+  type N = _0
+}
+
+/**
+ * Type level encoding of the natural numbers.
+ *
+ * @author Miles Sabin
+ */
+object Nat extends Nats {
+  import ops.nat._
+  import syntax.NatOps
+
+
+**** convert int into Nat
+  implicit def apply(i: Int): Nat = macro NatMacros.materializeWidened
+
+  /** The natural number 0 */
+  type _0 = shapeless._0
+  val _0: _0 = new _0
+
+  def toInt[N <: Nat](implicit toIntN : ToInt[N]) = toIntN()
+
+  def toInt(n : Nat)(implicit toIntN : ToInt[n.N]) = toIntN()
+
+  implicit def natOps[N <: Nat](n : N) : NatOps[N] = new NatOps(n)
+}
+
+@macrocompat.bundle
+class NatMacros(val c: whitebox.Context) extends NatMacroDefns {
+  import c.universe._
+
+  def materializeWidened(i: Tree): Tree =
+    i match {
+      case NatLiteral(n) => mkNatValue(n)
+      case _ =>
+        c.abort(c.enclosingPosition, s"Expression $i does not evaluate to a non-negative Int literal")
+    }
+}
+
+@macrocompat.bundle
+trait NatMacroDefns {
+  val c: whitebox.Context
+  import c.universe._
+
+  object NatLiteral {
+    def unapply(i: Tree): Option[Int] =
+      i match {
+        case Literal(Constant(n: Int)) if n >= 0 => Some(n)
+        case _ => None
+      }
+  }
+
+  def mkNatTpt(i: Int): Tree = {
+    val succSym = typeOf[Succ[_]].typeConstructor.typeSymbol
+    val _0Sym = typeOf[_0].typeSymbol
+
+    @tailrec
+    def loop(i: Int, acc: Tree): Tree = {
+      if(i == 0) acc
+      else loop(i-1, AppliedTypeTree(Ident(succSym), List(acc)))
+    }
+
+    loop(i, Ident(_0Sym))
+  }
+
+  def mkNatTpe(i: Int): Type = {
+    val succTpe = typeOf[Succ[_]].typeConstructor
+    val _0Tpe = typeOf[_0]
+
+    @tailrec
+    def loop(i: Int, acc: Type): Type = {
+      if(i == 0) acc
+      else loop(i-1, appliedType(succTpe, acc))
+    }
+
+    loop(i, _0Tpe)
+  }
+
+  def mkNatValue(i: Int): Tree =
+    q""" new ${mkNatTpt(i)} """
+}
+
+#+BEGIN_SRC scala
+import shapeless._
+import nat._
+import ops.nat._
+
+
+type JustChecking[A,B] = Pred.Aux[A,B]
+def succ[N <: Nat, M <:Nat](implicit s: Succ[N], p:Pred[M]): (Succ[M], Pred[N]) = {
+
+????
+}
+
+type Seven = Succ[_6]
+type Six = Pred[Seven]
+
+def same[A<:Nat, B<:Nat]
+
+
+trait Six {
+type N <: Nat
+}
+
+
+https://meta.plasm.us/posts/2013/06/09/learning-shapeless/
+ 
+#+END_SRC
+
+#+BEGIN_SRC scala
+// Basically trying to implement Vector n a
+trait SList[A, N <: Nat] {
+private val list: List[A]
+def head: A = list.head
+
+}
+
+trait SFull
+
+
+
+
+#+END_SRC
+
+https://scala-lang.org/files/archive/spec/2.12/03-types.html
+
+
+Fix point type
+
+when input is same as output
+
+for e.g. you get Succ[Succ[
+
++ How can compiler take sum1 and sum2 
+
+
++ any time compiler complains..it has too little information
+and you need to provide some function
+
++ Base case, inductive case and compiler does rest of it
+
+Shapeless Poly1 is natural transformation
