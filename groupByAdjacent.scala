@@ -192,7 +192,7 @@ object MyUtil {
 
          println(s"inside doChunk prBegin = $prBegin, chunk = ${chunk} accum = $accum current = $current")
 
-         //homogenous chunk of 1s or chunk is empty
+         //Chunk(2,2,2) or Chunk.empty
          if (prBegin == -1){
 
            println(s"outputting chunk...current = $current accum = $accum")
@@ -203,7 +203,11 @@ object MyUtil {
                  Pull.outputChunk(chunk.take(chunk.size -1)) >> go(s, chunk.last, None)
              case (Some(a), None) => Pull.output(a) >>  Pull.outputChunk(chunk.take(chunk.size -1)) >> go(s, chunk.last, None)
 
-             case (Some(a), Some(c)) => Pull.output(a) >> Pull.output1(c) >> Pull.outputChunk(chunk.take(chunk.size -1)) >> go(s, chunk.last , None)
+             case (Some(a), Some(c)) =>
+               if(chunk.isEmpty)
+                  Pull.output(a) >> Pull.outputChunk(chunk.take(chunk.size -1)) >> go(s, current, None)
+                 else
+               Pull.output(a) >> Pull.output1(c) >> Pull.outputChunk(chunk.take(chunk.size -1)) >> go(s, chunk.last , None)
 
              case (None, Some(c)) =>
                if(chunk.isEmpty)
@@ -219,41 +223,49 @@ object MyUtil {
 
       
            val (chunk1, chunk2) = chunk.splitAt(prBegin)
-           val primaries = chunk1.take(prBegin - 1)
+          // val primaries = chunk1.take(prBegin - 1)
            val prEnd = chunk2.indexWhere(f andThen {y:Boolean => !y}).getOrElse(chunk2.size)
 
-           if(primaries.isEmpty){
+          
+           // Chunk (1,1,1,....)
+           if(chunk1.isEmpty){
 
-             
+             //Chunk(1,1,1,1)
              if (prEnd == chunk2.size) {
-               val newCurrent = Some(m.combine(chunk1.last.getOrElse(m.empty),  m.combine(current.getOrElse(m.empty), chunk2.foldLeft(m.empty)(m.combine))))
-               println(s" >> primaries is empty- all 1s current = $newCurrent accum = $accum")
+               val newCurrent = Some(m.combine(current.getOrElse(m.empty), chunk2.foldLeft(m.empty)(m.combine)))
+               println(s" >> if if chunk1 is empty- all 1s current = $newCurrent accum = $accum")
                doChunk(Chunk.empty, s, newCurrent, accum)
              }
              else {
               
-              
-               val squishedRecord =  m.combine(chunk1.last.getOrElse(m.empty), m.combine(current.getOrElse(m.empty), chunk2.take(prEnd).foldLeft(m.empty)(m.combine)))
+              //Chunk(1,1,1,1,2....)
+               val squishedRecord =   m.combine(current.getOrElse(m.empty), chunk2.take(prEnd).foldLeft(m.empty)(m.combine))
                val newAccum =  Some(accum.getOrElse(Segment.empty)  ++ Segment.singleton(squishedRecord))
-               println(s" >> primaries is empty, mixed current = None accum = $newAccum")
+               println(s" >> if else  chunk1 is empty, mixed current = None accum = $newAccum")
                doChunk(chunk2.drop(prEnd), s, None, newAccum)
                }
            }
            else {
-
+             // Chunk(2,1,1,1) or Chunk(2,2,2,2,1,1,1,1)
              if (prEnd == chunk2.size) {
-               println(" >> primaries is not empty, chunk2 is all 1s")
-               val newCurrent = Some(m.combine(current.getOrElse(m.empty), chunk2.foldLeft(m.empty)(m.combine)))
+               println(" >> else if chunk1 is not empty, chunk2 is all 1s")
+               val newCurrent = Some(m.combine(chunk1.last.getOrElse(m.empty), chunk2.foldLeft(m.empty)(m.combine)))
               // println(s"primaries is not empty- all 1s current = $newCurrent accum = $accum")
 
-               doChunk(Chunk.empty, s, Some(m.combine(current.getOrElse(m.empty), chunk2.foldLeft(m.empty)(m.combine))), Some(accum.getOrElse(Segment.empty) ++ Segment.chunk(primaries)))
+               doChunk(Chunk.empty, s,newCurrent, Some(accum.getOrElse(Segment.empty) ++ Segment.chunk(chunk1.take(chunk1.size-1))))
 
 
              }
+             // Chunk(2,2,2,1,1,1,2,...)
              else {
-               println(" >> primaries is not empty, chunk2 is not all 1s")
+               println(" >> else else chunk1 is not empty, chunk2 is not all 1s")
                val squishedRecord =  m.combine(chunk1.last.getOrElse(m.empty), chunk2.take(prEnd).foldLeft(m.empty)(m.combine))
-               doChunk(chunk2.drop(prEnd), s, None, Some(accum.getOrElse(Segment.empty) ++ Segment.chunk(primaries) ++ Segment.singleton(squishedRecord)))
+               val currSeg  = current match {
+                 case Some(c) => Segment.singleton(c)
+                 case None => Segment.empty
+               }
+
+               doChunk(chunk2.drop(prEnd), s, None, Some(accum.getOrElse(Segment.empty) ++ currSeg ++  Segment.chunk(chunk1.take(chunk1.size-1)) ++ Segment.singleton(squishedRecord)))
              
 
              }
