@@ -101,8 +101,9 @@ SPC g f h
 
 or
 
-** Things I should be able to 
 
+** Things I should be able to 
+   
 *** Check ensime package version
    M-x list-packages and go to "ensime"
 *** Run sbt project index
@@ -124,4 +125,16 @@ use scalaformat cli
 
 
 *** know whats going inside sbt
+
+
+** How to refresh ensime after adding dependencies
+
+sbt clean
+sbt ensimeConfig
+M-x ensime-shutdown
+M-x ensime
+
+
+Above worked this time..but may have to remove sbt caches
+in ~/.ivy2, ~/.sbt etc.m
 

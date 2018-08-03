@@ -2045,6 +2045,22 @@ blocked
   + dequeue1 - pops one element, dequeue - gives a stream
   + enqueue1 - puts an element,
 
+merging runs concurrently on many threads - here executioncontext is global
+#+BEGIN_SRC scala
+Stream.eval(IO { println("stream1 >> " + Thread.currentThread.getName); 2+3 }).repeat.take(10).merge(Stream.eval(IO { println(Thread.currentThread.getName); 10*1 }))
+stream1 >> scala-execution-context-global-190
+scala-execution-context-global-184
+stream1 >> scala-execution-context-global-186
+stream1 >> scala-execution-context-global-187
+stream1 >> scala-execution-context-global-190
+stream1 >> scala-execution-context-global-183
+stream1 >> scala-execution-context-global-185
+stream1 >> scala-execution-context-global-186
+stream1 >> scala-execution-context-global-190
+stream1 >> scala-execution-context-global-187
+stream1 >> scala-execution-context-global-185
+
+#+END_SRC
 
 *** API documentation
 + Segment[O,R] - seq of pure values, has no effect

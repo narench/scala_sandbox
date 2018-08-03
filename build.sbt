@@ -89,3 +89,5 @@ libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % 
 libraryDependencies += "co.fs2" %% "fs2-core" % "0.10.4"
 libraryDependencies += "co.fs2" %% "fs2-io" % "0.10.4"
 libraryDependencies += "org.apache.commons" % "commons-compress" % "1.17"
+libraryDependencies += "software.amazon.awssdk" % "s3" % "2.0.0-preview-11" 
+libraryDependencies += "org.scala-lang.modules" % "scala-java8-compat_2.12" % "0.9.0"

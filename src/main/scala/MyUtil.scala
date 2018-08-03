@@ -68,134 +68,22 @@ object MyUtil {
   }
 
 
-/*
-  def collapseMultiLineText[F[_], O, R](in:Stream[F,O], n:Int = 2): Stream[F,O] = {
 
-
-
-    def go(strm: Stream[F, O]): Pull[F, O, Unit] = {
-      println("Entering go...")
-
-       strm.pull.unconsChunk.flatMap { opt : Option[(Chunk[O], Stream[F, O])] => opt match {
-      case None => Pull.done
-         case Some((hd, tail)) =>{
-           println(s"chunk >> $hd, stream >> ${tail}")
-           Pull.outputChunk(hd.take(hd.size -1)).flatMap { _ => go(tail) }
-     }
-       }
-       }
-
-
-
-
-
-     }
-
-    def collapseChunkOutput(chk:Chunk[O], f: O => Boolean)(implicit sg : Semigroup[O]): Chunk[O] = {
-
-      // I could write a recursive function but it would be more O(n*logn)??
-      // you can avoid some of the construction/deconstruction with
-      //Catenable(..ts(n-1), ts(n)) 
-      // push current to partial record
-
-      chk.foldLeft[Catenable[O]](Catenable.empty) {(out, current) =>
-        if (f(current)) out ++ Catenable(sg.combine(current, current))
-        else Catenable(current) }
-      chk
-      
-    }
-
-
-    go(in).stream
-  }
-
-  /// Chunk(1,1,1,1,0,0,0,0,1,1,1)
-
-  // def doChunk[F[_], O](chunk: Chunk[O], s: Stream[F,O], f: O => Boolean, accum:Option[O]) (implicit sg: Semigroup[O]):Pull[F,O,Unit] = {
-
-
-
-  //   val prBegin = chunk.indexWhere(f).getOrElse(0) - 1
-  //   val (chunk1, chunk2) = chunk.splitAt(prBegin)
-
-  //   (chunk1, chunk2) match {
-
-  //     case (Chunk.empty, Chunk.empty) => Pull.done
-  //   }
-
-
-
-
-
-  //   Pull.done
-
-  // }
-
-
-  //  def doChunkSeg[F[_], O](chunk: Chunk[O], out: Segment[O, Unit], f: O => Boolean) (implicit sg: Semigroup[O]):Segment[O,Unit] = {
-
-
-
-  //   val splitIndex = chunk.indexWhere(f).getOrElse(-1)
-  //   val (chunk1, chunk2) = chunk.splitAt(splitIndex)
-
-  //    Segment.chunk(chunk1.take(splitIndex-1)) ++ Segment(sg.combine(chunk1.last.get, chunk2.head.get)) ++ doChunkSeg(
-  //  }
-
-
- */
-
-  
-
-
- /* def scratch() {
-
-  val names = Chunk.vector(Vector("naren", "noreen", "nancy", "alpha", "richard", "bailey", "hannah", "darryl", "montana", "missouri", "paris", "lyviv", "nouveau"))
-    type A = (Catenable[String], Option[String])
-    type B = (Segment[String, Unit], Option[String])
-
-
-  names.foldLeft[A]((Catenable.empty,None)){(out, e) => out match {
-   // close partial record and emit if current element is n
-    case (a , Some(pr)) if e.startsWith("n") => (a.snoc(pr), Some(e))
-   // open partial record
-    case (a, None) if e.startsWith("n") => (a, Some(e))
-    case (a, Some(pr) ) => (a, Some(pr + e))
-     case (a, None) => (a, Some(e))
-  }}
-
-
-
-    /*
-    this works but one chunk is emitted per element
-    (catenated(Chunk(naren), Chunk(noreen), Chunk(nancyalpharichardbaileyhannahdarrylmontanamissouriparislyviv)),Some(nouveau))
-    */
-   
-    names.foldLeft[B]((Segment.empty,None)){(out, e) => out match {
-   // close partial record and emit if current element is n
-    case (a , Some(pr)) if e.startsWith("n") => (a ++ Segment(pr), Some(e))
-   // open partial record
-    case (a, None) if e.startsWith("n") => (a, Some(e))
-    case (a, Some(pr) ) => (a, Some(pr + e))
-     case (a,  None) => (a, Some(e))
-    }}
-
-  }*/
 
 ////////////////////////////////////////////////
 
-     def combineAdjacentBy[F[_],O](s:Stream[F,O], f: O => Boolean)(implicit m: Monoid[O]): Stream[F,O] = {
+     def combineAdjacentBy[F[_],O](f: O => Boolean)(implicit m: Monoid[O]): Pipe[F,O, O] = { s: Stream[F,O] =>
 
        def doChunk(chunk: Chunk[O], s:Stream[F,O], current:Option[O],  accum:Option[Segment[O, Unit]]): Pull[F, O, Unit] = {
 
          val prBegin = chunk.indexWhere(f).getOrElse(-1)
 
-         println(s"inside doChunk prBegin = $prBegin, chunk = ${chunk} accum = $accum current = $current")
+        //  println(s"inside doChunk prBegin = $prBegin, chunk = ${chunk} accum = $accum current = $current")
 
          //Chunk(2,2,2) or Chunk.empty
          if (prBegin == -1){
 
-           println(s"outputting chunk...current = $current accum = $accum")
+          // println(s"outputting chunk...current = $current accum = $accum")
 
            (accum, current) match {
   
@@ -233,22 +121,22 @@ object MyUtil {
              //Chunk(1,1,1,1)
              if (prEnd == chunk2.size) {
                val newCurrent = Some(m.combine(current.getOrElse(m.empty), chunk2.foldLeft(m.empty)(m.combine)))
-               println(s" >> if if chunk1 is empty- all 1s current = $newCurrent accum = $accum")
+               // println(s" >> if if chunk1 is empty- all 1s current = $newCurrent accum = $accum")
                doChunk(Chunk.empty, s, newCurrent, accum)
              }
              else {
               
               //Chunk(1,1,1,1,2....)
-               val squishedRecord =   m.combine(current.getOrElse(m.empty), chunk2.take(prEnd).foldLeft(m.empty)(m.combine))
-               val newAccum =  Some(accum.getOrElse(Segment.empty)  ++ Segment.singleton(squishedRecord))
-               println(s" >> if else  chunk1 is empty, mixed current = None accum = $newAccum")
+               val reducedO =   m.combine(current.getOrElse(m.empty), chunk2.take(prEnd).foldLeft(m.empty)(m.combine))
+               val newAccum =  Some(accum.getOrElse(Segment.empty)  ++ Segment.singleton(reducedO))
+               // println(s" >> if else  chunk1 is empty, mixed current = None accum = $newAccum")
                doChunk(chunk2.drop(prEnd), s, None, newAccum)
                }
            }
            else {
              // Chunk(2,1,1,1) or Chunk(2,2,2,2,1,1,1,1)
              if (prEnd == chunk2.size) {
-               println(" >> else if chunk1 is not empty, chunk2 is all 1s")
+               // println(" >> else if chunk1 is not empty, chunk2 is all 1s")
                val newCurrent = Some(m.combine(chunk1.last.getOrElse(m.empty), chunk2.foldLeft(m.empty)(m.combine)))
               // println(s"primaries is not empty- all 1s current = $newCurrent accum = $accum")
 
@@ -258,14 +146,14 @@ object MyUtil {
              }
              // Chunk(2,2,2,1,1,1,2,...)
              else {
-               println(" >> else else chunk1 is not empty, chunk2 is not all 1s")
-               val squishedRecord =  m.combine(chunk1.last.getOrElse(m.empty), chunk2.take(prEnd).foldLeft(m.empty)(m.combine))
+               // println(" >> else else chunk1 is not empty, chunk2 is not all 1s")
+               val reducedO =  m.combine(chunk1.last.getOrElse(m.empty), chunk2.take(prEnd).foldLeft(m.empty)(m.combine))
                val currSeg  = current match {
                  case Some(c) => Segment.singleton(c)
                  case None => Segment.empty
                }
 
-               doChunk(chunk2.drop(prEnd), s, None, Some(accum.getOrElse(Segment.empty) ++ currSeg ++  Segment.chunk(chunk1.take(chunk1.size-1)) ++ Segment.singleton(squishedRecord)))
+               doChunk(chunk2.drop(prEnd), s, None, Some(accum.getOrElse(Segment.empty) ++ currSeg ++  Segment.chunk(chunk1.take(chunk1.size-1)) ++ Segment.singleton(reducedO)))
              
 
              }
@@ -296,6 +184,40 @@ object MyUtil {
        go(s, None, None).stream
 
      }
+
+
+  import cats.effect.{Effect, IO}
+import fs2.StreamApp.ExitCode
+import fs2.async.Promise
+import fs2.{Scheduler, Stream, StreamApp, async}
+
+import scala.concurrent.ExecutionContext.Implicits.global
+
+class ConcurrentCompletion[F[_]](p: Promise[F, Int])(implicit F: Effect[F]) {
+
+  private def attemptPromiseCompletion(n: Int): Stream[F, Unit] =
+    Stream.eval(p.complete(n)).attempt.drain
+
+  def start: Stream[F, ExitCode] =
+    Stream(
+      attemptPromiseCompletion(1),
+      attemptPromiseCompletion(2),
+      Stream.eval(p.get).evalMap(n => F.delay(println(s"Result: $n")))
+    ).join(3).drain ++ Stream.emit(ExitCode.Success)
+
+}
+
+class Once[F[_]: Effect] extends StreamApp[F] {
+
+  override def stream(args: List[String], requestShutdown: F[Unit]): fs2.Stream[F, ExitCode] =
+    Scheduler(corePoolSize = 4).flatMap { implicit scheduler =>
+      for {
+        p <- Stream.eval(async.promise[F, Int])
+        e <- new ConcurrentCompletion[F](p).start
+      } yield e
+    }
+
+}
 
 
 
