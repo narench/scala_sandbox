@@ -2060,8 +2060,16 @@ stream1 >> scala-execution-context-global-190
 stream1 >> scala-execution-context-global-187
 stream1 >> scala-execution-context-global-185
 
-#+END_SRC
+Stream(1,2,3,4,5).repeat.covary[IO].interruptWhen(IO{Right(Thread.sleep(100))})
 
+#+END_SRC
++async
+ + has methods to create emty queue, Topic etc.,
+ + 
++Queue
+
++Promise
+ + to implement only/once semantic
 *** API documentation
 + Segment[O,R] - seq of pure values, has no effect
   + fold ..folds element into Result
@@ -2442,3 +2450,80 @@ Implement Sync instance for IO
 //This blows up...also I need to carry parseResult
 Stream(1,2,3,4).covary[cats.effect.IO].map(x => 1/(x-4))
 
+** AWS non-blocking and FS2 integration u<2018-08-01 Wed>
+
+#+BEGIN_SRC scala
+import fs2._
+import scala.compat.java8.FutureConverters
+
+  IO.fromFuture(IO{FutureConverters.toScala(cf)})
+
+  val rbl = new Runnable(){
+             def run(): String = {
+             println(Thread.currentThread.getName)
+             return "done"
+  }}
+
+
+ import java.util.function.Supplier
+
+  val cfSupplier = new Supplier[String] {
+                 def get(): String = {
+                println(Thread.currentThread.getName)
+                return "done"
+  }}
+  val cf1 = CompletableFuture.supplyAsync(cfSupplier)
+
+  IO.fromFuture(IO{FutureConverters.toScala(cf1)})
+
+  Stream.eval(res1)(s => Stream(s))
+  Stream.eval(res1).flatMap(s => Stream(s))
+
+
+
+#+END_SRC   
+  
+
+
++ Sink
+  take I from input Stream[F,I] and apply I => F[Unit] to get Stream[F,Unit]
+
+
+*** FS2 TCP
+#+BEGIN_SRC scala
+import fs2._
+import fs2.io._
+import cats._
+import cats.effect._
+import cats.implicits._
+
+import java.nio.channels.AsynchronousChannelGroup
+import java.nio.channels.spi.AsynchronousChannelProvider
+import scala.concurrent.ExecutionContext.Implicits.global
+import fs2.internal.ThreadFactories
+import java.net.InetSocketAddress
+
+ implicit val tcpACG: AsynchronousChannelGroup = AsynchronousChannelProvider
+    .provider()
+    .openAsynchronousChannelGroup(8, ThreadFactories.named("fs2-ag-tcp", true))
+
+val local = new InetSocketAddress(InetAddress.getByName(null), 5555)
+fs2.io.tcp.client[IO](local).flatMap(socket => Stream("naren", "amber").intersperse("\n").repeat.covary[IO].through(text.utf8Encode).to(socket.writes())
+
+
+
+#+END_SRC
+
+*** FS2 Scheduler
+
+#+BEGIN_SRC scala
+
+for {
+      sched <- Scheduler[IO](1)
+     counter <- Stream.eval(async.refOf[IO, Int](0))
+     _ <- sched.awakeEvery[IO](5.seconds)
+      c  <- Stream.eval(counter.get)
+      _ <- Stream.eval(counter.modify(_ + 1))
+     } yield c
+
+#+END_SRC
