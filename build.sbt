@@ -91,3 +91,10 @@ libraryDependencies += "co.fs2" %% "fs2-io" % "0.10.4"
 libraryDependencies += "org.apache.commons" % "commons-compress" % "1.17"
 libraryDependencies += "software.amazon.awssdk" % "s3" % "2.0.0-preview-11" 
 libraryDependencies += "org.scala-lang.modules" % "scala-java8-compat_2.12" % "0.9.0"
+libraryDependencies ++= Seq(
+  "com.lendup.fs2-blobstore" %% "core" % "0.1.+",
+   "com.lendup.fs2-blobstore" %% "s3" % "0.1.+"
+)
+
+// need this for jvm options to take effect
+fork in run := true
